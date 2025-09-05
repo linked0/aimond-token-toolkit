@@ -1,0 +1,23 @@
+{
+  "name": "backend",
+  "packageManager": "yarn@4.4.1",
+  "scripts": {
+    "start": "nodemon --watch src --ext ts --exec ts-node -r dotenv/config src/index.ts",
+    "build": "tsc",
+    "seed": "ts-node -r dotenv/config scripts/seed.ts",
+    "db:create": "ts-node -r dotenv/config scripts/createDbUser.ts",
+    "db:setup": "ts-node -r dotenv/config scripts/setupDatabase.ts"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.3.0",
+    "dotenv": "^17.2.2",
+    "nodemon": "^3.1.10",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
+  }
+}
