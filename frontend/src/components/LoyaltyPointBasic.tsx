@@ -1,13 +1,8 @@
 import Jazzicon from './Jazzicon';
 import { useState } from "react";
 import { connectWallet } from "../utils/connectWallet"; // Corrected import
+import Sidebar from './Sidebar';
 
-
-const imgImage1 = "/assets/loyalty-card.png";
-const imgTicket = "/assets/ticket.svg";
-const imgChart = "/assets/chart.svg";
-const imgDocument = "/assets/document.svg";
-const imgActivity = "/assets/activity.svg";
 
 // Interface definitions remain the same...
 interface Point {
@@ -22,20 +17,6 @@ interface LoyaltyPointBasicProps {
     points: Point[];
 }
 
-// Define a type for our menu items for better type safety
-interface MenuItem {
-    name: string;
-    icon: string;
-}
-
-// **FIX:** Define the menuItems array outside the component
-const menuItems: MenuItem[] = [
-    { name: 'Loyalty Point', icon: imgChart },
-    { name: 'Investor Vesting', icon: imgTicket },
-    { name: 'Founder Vesting', icon: imgDocument },
-    { name: 'Employee Vesting', icon: imgActivity },
-];
-
 const truncateAddress = (address: string) => {
   if (!address) return "";
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -47,6 +28,7 @@ export default function LoyaltyPointBasic({ points }: LoyaltyPointBasicProps) {
 
     return (
         <div className="bg-[#f7f7f8] relative size-full">
+            <Sidebar activeItem={activeItem} setActiveItem={setActiveItem} />
             {/* Main Content Area */}
             <div className="ml-[254px]">
                 <div className="flex justify-between items-center mb-4 p-6">
@@ -85,38 +67,6 @@ export default function LoyaltyPointBasic({ points }: LoyaltyPointBasicProps) {
                     </table>
                 </div>
             </div>
-
-            {/* Sidebar Menu */}
-             <nav className="absolute top-0 left-0 bg-white w-[254px] flex flex-col shadow-lg">
-                <div className="h-[120px] flex items-center justify-center p-4">
-                    <img alt="Logo" className="max-h-full" src={imgImage1} />
-                </div>
-                
-                <ul className="flex flex-col space-y-2 px-4">
-                    {menuItems.map((item) => (
-                        <li key={item.name}>
-                            <a 
-                                href="#" 
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    setActiveItem(item.name);
-                                }}
-                                className={`flex items-center p-3 rounded-lg transition-colors ${
-                                    activeItem === item.name
-                                    ? 'text-[#605bff] font-semibold bg-gray-100' 
-                                    : 'text-[#030229] opacity-50 font-semibold hover:bg-gray-100'
-                                }`}
-                            >
-                                {activeItem === item.name && (
-                                    <div className="absolute left-0 bg-gradient-to-r from-[#aca9ff] h-12 opacity-20 rounded-r-[5px] to-[#aca9ff00] to-[91.25%] w-[62px]" />
-                                )}
-                                <img src={item.icon} alt={`${item.name} icon`} className="w-5 h-5 mr-4" />
-                                <span className="text-base">{item.name}</span>
-                            </a>
-                        </li>
-                    ))}
-                </ul>
-            </nav>
         </div>
     );
 }
