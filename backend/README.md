@@ -2,6 +2,16 @@
 
 ## Running the Server
 
+## API Documentation (Swagger)
+
+The API documentation is available via Swagger UI. Once the backend server is running, you can access the interactive documentation at:
+
+```
+http://localhost:3000/api-docs
+```
+
+This interface allows you to explore available endpoints, understand request/response structures, and test API calls directly from your browser.
+
 To run the backend server, follow these steps:
 
 1.  **Ensure Database Setup:**

@@ -3,6 +3,8 @@ import pool from './database/db'; // Import the pool from db.ts
 import { PgUserRepository } from './repositories/pg/PgUserRepository';
 import { PgAllocationRepository } from './repositories/pg/PgAllocationRepository';
 import userRoutes from './routes/userRoutes';
+import swaggerUi from 'swagger-ui-express';
+import swaggerSpec from './swagger';
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -34,6 +36,8 @@ app.get('/test-db', async (req, res) => {
     res.status(500).send('Error connecting to database');
   }
 });
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use('/api', userRoutes);
 
