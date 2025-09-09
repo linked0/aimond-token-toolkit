@@ -17,17 +17,34 @@ export class PgUserRepository implements IUserRepository {
   }
 
   async create(user: Omit<User, 'user_id' | 'created_at'>): Promise<User> {
+    const {
+      wallet_address,
+      referrer_id = null,
+      total_spending_for_amd_allocation,
+      total_spent_money,
+      is_paid_member,
+      paid_member_tier = null,
+    } = user;
     const result = await this.db.query<User>(
-      'INSERT INTO "user"(wallet_address, referrer_id) VALUES($1, $2) RETURNING *'
-      , [user.wallet_address, user.referrer_id]
+      'INSERT INTO "user"(wallet_address, referrer_id, total_spending_for_amd_allocation, total_spent_money, is_paid_member, paid_member_tier) VALUES($1, $2, $3, $4, $5, $6) RETURNING *',
+      [
+        wallet_address,
+        referrer_id,
+        total_spending_for_amd_allocation,
+        total_spent_money,
+        is_paid_member,
+        paid_member_tier,
+      ]
     );
     return result.rows[0];
   }
 
   async update(id: number, user: Partial<User>): Promise<User | null> {
-    const fields = Object.keys(user).map((key, index) => `"${key}" = $${index + 2}`).join(', ');
+    const fields = Object.keys(user)
+      .map((key, index) => `"${key}" = $${index + 2}`)
+      .join(', ');
     const values = Object.values(user);
-    if (fields.length === 0) return this.findById(id); // No fields to update
+    if (!fields) return this.findById(id);
 
     const result = await this.db.query<User>(
       `UPDATE "user" SET ${fields} WHERE user_id = $1 RETURNING *`,
@@ -44,5 +61,10 @@ export class PgUserRepository implements IUserRepository {
   async findAll(): Promise<User[]> {
     const result = await this.db.query<User>('SELECT * FROM "user"');
     return result.rows;
+  }
+
+  async getTotalPaidMemberCount(): Promise<number> {
+    const result = await this.db.query<{ count: string }>('SELECT COUNT(*) FROM "user" WHERE is_paid_member = TRUE');
+    return parseInt(result.rows[0].count, 10);
   }
 }

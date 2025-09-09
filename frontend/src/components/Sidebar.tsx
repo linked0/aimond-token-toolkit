@@ -9,21 +9,24 @@ const imgActivity = "/assets/activity.svg";
 interface MenuItem {
     name: string;
     icon: string;
+    view: string;
 }
 
 const menuItems: MenuItem[] = [
-    { name: 'Loyalty Point', icon: imgChart },
-    { name: 'Investor Vesting', icon: imgTicket },
-    { name: 'Founder Vesting', icon: imgDocument },
-    { name: 'Employee Vesting', icon: imgActivity },
+    { name: 'Loyalty Point', icon: imgChart, view: 'loyalty' },
+    { name: 'Investor Vesting', icon: imgTicket, view: 'investor' },
+    { name: 'Founder Vesting', icon: imgDocument, view: 'founder' },
+    { name: 'Employee Vesting', icon: imgActivity, view: 'employee' },
+    { name: 'Sample Data', icon: imgDocument, view: 'sampleData' },
 ];
 
 interface SidebarProps {
     activeItem: string;
     setActiveItem: (item: string) => void;
+    setView: (view: string) => void;
 }
 
-export default function Sidebar({ activeItem, setActiveItem }: SidebarProps) {
+export default function Sidebar({ activeItem, setActiveItem, setView }: SidebarProps) {
     return (
         <nav className="absolute top-0 left-0 bg-white w-[254px] flex flex-col shadow-lg">
             <div className="h-[120px] flex items-center justify-center p-4">
@@ -38,6 +41,7 @@ export default function Sidebar({ activeItem, setActiveItem }: SidebarProps) {
                             onClick={(e) => {
                                 e.preventDefault();
                                 setActiveItem(item.name);
+                                setView(item.view);
                             }}
                             className={`flex items-center p-3 rounded-lg transition-colors ${
                                 activeItem === item.name

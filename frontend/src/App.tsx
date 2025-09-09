@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import LoyaltyPointAdmin from './components/LoyaltyPointAdmin';
 import LoyaltyPointBasic from './components/LoyaltyPointBasic';
+import SampleDataInput from './components/SampleDataInput';
+import Sidebar from './components/Sidebar';
 import './App.css';
 
 // To avoid TypeScript errors for window.ethereum
@@ -21,6 +23,8 @@ interface Point {
 function App() {
   const [points, setPoints] = useState<Point[]>([]);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [view, setView] = useState('loyalty');
+  const [activeItem, setActiveItem] = useState('Loyalty Point');
   console.log("walletAddress: ", walletAddress);
 
   // This effect runs once when the component mounts to check for a pre-existing connection
@@ -50,9 +54,19 @@ function App() {
     
     const fetchPoints = async () => {
       try {
-        const response = await fetch('/points');
+        const uri = '/api/points';
+        console.log("Fetching points from URI:", uri);
+        const response = await fetch(uri);
         const data = await response.json();
-        setPoints(data);
+        console.log("Raw points data:", data);
+        const parsedData: Point[] = data.map((item: any) => ({
+          ...item,
+          referralAmount: parseFloat(item.referralAmount),
+          paidPointAmount: parseFloat(item.paidPointAmount),
+          airdropAmount: parseFloat(item.airdropAmount),
+        }));
+        console.log("Parsed points data:", parsedData);
+        setPoints(parsedData);
       } catch (error) {
         console.error("Error fetching points:", error);
       }
@@ -76,18 +90,35 @@ function App() {
     }
   };
 
-  return (
-    <div className="App">
-      {walletAddress ? (
+  const renderContent = () => {
+    if (view === 'sampleData') {
+      return <SampleDataInput points={points} />;
+    }
+    
+    if (view === 'loyalty') {
+      return walletAddress ? (
         <LoyaltyPointAdmin walletAddress={walletAddress} points={points} />
       ) : (
         <div>
           <button onClick={handleConnectWallet}>Connect Wallet</button>
           <LoyaltyPointBasic points={points} />
         </div>
-      )}
+      );
+    }
+
+    // Placeholder for other views
+    return <div>{view}</div>;
+  };
+
+  return (
+    <div className="App flex">
+      <Sidebar activeItem={activeItem} setActiveItem={setActiveItem} setView={setView} />
+      <div className="flex-grow" style={{ marginLeft: '254px' }}>
+        {renderContent()}
+      </div>
     </div>
   );
 }
 
 export default App;
+
