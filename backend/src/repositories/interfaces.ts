@@ -11,6 +11,7 @@ export interface IUserRepository {
   update(id: number, user: Partial<User>): Promise<User | null>;
   delete(id: number): Promise<boolean>;
   findAll(): Promise<User[]>;
+  getTotalPaidMemberCount(): Promise<number>;
 }
 
 export interface IAllocationRepository {

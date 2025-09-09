@@ -45,9 +45,9 @@ export default function LoyaltyPointAdmin({ points, walletAddress }: LoyaltyPoin
 
     return (
         <div className="bg-[#f7f7f8] relative size-full">
-            <Sidebar activeItem={activeItem} setActiveItem={setActiveItem} />
+            
             {/* Main Content Area */}
-            <div className="ml-[254px]">
+            <div>
                 <div className="flex justify-between items-center mb-4 p-6">
                     <div>
                         <div className="font-['Nunito:Bold',_sans-serif] font-bold text-[#030229] text-[24px]">

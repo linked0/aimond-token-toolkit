@@ -20,6 +20,10 @@ const setupDatabase = async () => {
         user_id SERIAL PRIMARY KEY,
         wallet_address VARCHAR(255) UNIQUE NOT NULL,
         referrer_id INTEGER REFERENCES "user"(user_id),
+        total_spending_for_amd_allocation DECIMAL(20, 8) NOT NULL DEFAULT 0,
+        total_spent_money DECIMAL(20, 8) NOT NULL DEFAULT 0,
+        is_paid_member BOOLEAN NOT NULL DEFAULT FALSE,
+        paid_member_tier INTEGER,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     `);
