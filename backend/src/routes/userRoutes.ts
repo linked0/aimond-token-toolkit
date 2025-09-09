@@ -12,6 +12,52 @@ const PAID_MEMBER_THRESHOLD = 9.5; // $9.5 threshold for a paid new member
 const AMD_ALLOCATION_RATE = 1000; // 1000 AMD per $1
 const MAX_SPENDING_FOR_AMD = 5000000; // $5,000,000 cap
 
+/**
+ * @swagger
+ * tags:
+ *   name: Users
+ *   description: User management and loyalty points
+ */
+
+/**
+ * @swagger
+ * /api/points:
+ *   get:
+ *     summary: Get all users' loyalty points and allocation status.
+ *     tags: [Users]
+ *     responses:
+ *       200:
+ *         description: A list of users with their loyalty point breakdown and allocation status.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   address:
+ *                     type: string
+ *                     description: The wallet address of the user.
+ *                     example: "0xC4f9004d8348E9d43c5c080ab0592Fc70c61657f"
+ *                   referralAmount:
+ *                     type: string
+ *                     description: Total amount from referral rewards.
+ *                     example: "14000"
+ *                   paidPointAmount:
+ *                     type: string
+ *                     description: Total amount from spending rewards.
+ *                     example: "1000"
+ *                   airdropAmount:
+ *                     type: string
+ *                     description: Total amount from airdrop allocations.
+ *                     example: "100000"
+ *                   status:
+ *                     type: string
+ *                     description: Status of allocations (e.g., "Unclaimed", "All Claimed").
+ *                     example: "Unclaimed"
+ *       500:
+ *         description: Server error.
+ */
 router.get('/points', async (req, res) => {
   try {
     const users = await userRepository.findAll();
@@ -60,7 +106,55 @@ const roundUpToOneDecimal = (num: number): string => {
   return (Math.ceil(num * 10) / 10).toFixed(1);
 };
 
-// Endpoint to add a loyalty point allocation (now handles AMD and AIM)
+/**
+ * @swagger
+ * /api/spending-reward:
+ *   post:
+ *     summary: Process a spending reward for a user, allocating AMD and potentially qualifying them as a paid member.
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - wallet_address
+ *               - amount
+ *             properties:
+ *               wallet_address:
+ *                 type: string
+ *                 description: The wallet address of the user.
+ *                 example: "0xC4f9004d8348E9d43c5c080ab0592Fc70c61657f"
+ *               amount:
+ *                 type: number
+ *                 format: float
+ *                 description: The amount spent in USD.
+ *                 example: 10.5
+ *     responses:
+ *       200:
+ *         description: Spending reward processed successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Spending reward processed successfully."
+ *       400:
+ *         description: Invalid request body.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Wallet address and amount are required"
+ *       500:
+ *         description: Server error.
+ */
 router.post('/spending-reward', async (req, res) => {
   const { wallet_address, amount } = req.body; // amount is in USD
 
@@ -180,7 +274,66 @@ router.post('/spending-reward', async (req, res) => {
   }
 });
 
-// Endpoint to establish a referral link
+/**
+ * @swagger
+ * /api/referral:
+ *   post:
+ *     summary: Establish a referral link between two users.
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - referrer_wallet_address
+ *               - referred_wallet_address
+ *             properties:
+ *               referrer_wallet_address:
+ *                 type: string
+ *                 description: The wallet address of the referrer.
+ *                 example: "0xC4f9004d8348E9d43c5c080ab0592Fc70c61657f"
+ *               referred_wallet_address:
+ *                 type: string
+ *                 description: The wallet address of the referred user.
+ *                 example: "0x1Ee741401ac6b2c8932d730a7C4163fdf87bE95C"
+ *     responses:
+ *       200:
+ *         description: Referral link established successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Referral link established successfully."
+ *                 referredUser:
+ *                   $ref: '#/components/schemas/User' # Assuming User schema is defined elsewhere
+ *       400:
+ *         description: Invalid request body.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Referrer and referred wallet addresses are required"
+ *       409:
+ *         description: Conflict, user already referred by another.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "User has already been referred by another user."
+ *       500:
+ *         description: Server error.
+ */
 router.post('/referral', async (req, res) => {
   const { referrer_wallet_address, referred_wallet_address } = req.body;
 
@@ -215,7 +368,50 @@ router.post('/referral', async (req, res) => {
   }
 });
 
-// Endpoint to add an airdrop allocation
+/**
+ * @swagger
+ * /api/airdrop:
+ *   post:
+ *     summary: Add an airdrop allocation for a user.
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - wallet_address
+ *               - amount
+ *             properties:
+ *               wallet_address:
+ *                 type: string
+ *                 description: The wallet address of the user.
+ *                 example: "0xC4f9004d8348E9d43c5c080ab0592Fc70c61657f"
+ *               amount:
+ *                 type: string
+ *                 description: The amount of the airdrop.
+ *                 example: "50000"
+ *     responses:
+ *       201:
+ *         description: Airdrop allocation created successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Allocation' # Assuming Allocation schema is defined elsewhere
+ *       400:
+ *         description: Invalid request body.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Wallet address and amount are required"
+ *       500:
+ *         description: Server error.
+ */
 router.post('/airdrop', async (req, res) => {
   const { wallet_address, amount } = req.body;
 
