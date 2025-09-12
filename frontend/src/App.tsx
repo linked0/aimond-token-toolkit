@@ -17,7 +17,9 @@ interface Point {
   referralAmount: number;
   paidPointAmount: number;
   airdropAmount: number;
+  paidMemberAmount: number; // Added
   status: string;
+  totalClaimedAmount: number;
 }
 
 function App() {
@@ -28,14 +30,33 @@ function App() {
   console.log("walletAddress: ", walletAddress);
 
   // This effect runs once when the component mounts to check for a pre-existing connection
+  const refreshPoints = async () => {
+    try {
+      const uri = '/api/points';
+      console.log("Fetching points from URI:", uri);
+      const response = await fetch(uri);
+      const data = await response.json();
+      console.log("Raw points data:", data);
+      const parsedData: Point[] = data.map((item: any) => ({
+        ...item,
+        referralAmount: parseFloat(item.referralAmount),
+        paidPointAmount: parseFloat(item.paidPointAmount),
+        airdropAmount: parseFloat(item.airdropAmount),
+        paidMemberAmount: parseFloat(item.paidMemberAmount) || 0, // Added
+        totalClaimedAmount: parseFloat(item.totalClaimedAmount) || 0,
+      }));
+      console.log("Parsed points data:", parsedData);
+      setPoints(parsedData);
+    } catch (error) {
+      console.error("Error fetching points:", error);
+    }
+  };
+
   useEffect(() => {
     const checkIfWalletIsConnected = async () => {
       try {
         if (window.ethereum) {
-          // The 'eth_accounts' method returns an array containing the accounts the user has already granted access to.
-          // It doesn't open MetaMask, it just checks for authorization.
           const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-
           if (accounts.length > 0) {
             console.log("Found an authorized account:", accounts[0]);
             setWalletAddress(accounts[0]);
@@ -51,29 +72,14 @@ function App() {
     };
 
     checkIfWalletIsConnected();
-    
-    const fetchPoints = async () => {
-      try {
-        const uri = '/api/points';
-        console.log("Fetching points from URI:", uri);
-        const response = await fetch(uri);
-        const data = await response.json();
-        console.log("Raw points data:", data);
-        const parsedData: Point[] = data.map((item: any) => ({
-          ...item,
-          referralAmount: parseFloat(item.referralAmount),
-          paidPointAmount: parseFloat(item.paidPointAmount),
-          airdropAmount: parseFloat(item.airdropAmount),
-        }));
-        console.log("Parsed points data:", parsedData);
-        setPoints(parsedData);
-      } catch (error) {
-        console.error("Error fetching points:", error);
-      }
-    };
+    refreshPoints();
+  }, []);
 
-    fetchPoints();
-  }, []); // The empty dependency array ensures this runs only once on startup.
+  useEffect(() => {
+    if (view === 'loyalty') {
+      refreshPoints();
+    }
+  }, [view]);
 
   const handleConnectWallet = async () => {
     try {
@@ -92,12 +98,12 @@ function App() {
 
   const renderContent = () => {
     if (view === 'sampleData') {
-      return <SampleDataInput points={points} />;
+      return <SampleDataInput points={points} refreshPoints={refreshPoints} />;
     }
     
     if (view === 'loyalty') {
       return walletAddress ? (
-        <LoyaltyPointAdmin walletAddress={walletAddress} points={points} />
+        <LoyaltyPointAdmin walletAddress={walletAddress} points={points} refreshPoints={refreshPoints} />
       ) : (
         <div>
           <button onClick={handleConnectWallet}>Connect Wallet</button>

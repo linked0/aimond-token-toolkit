@@ -13,8 +13,8 @@ export class PgClaimRepository implements IClaimRepository {
 
   async create(claim: Omit<Claim, 'claim_id' | 'created_at'>): Promise<Claim> {
     const result = await this.db.query<Claim>(
-      'INSERT INTO claim(user_id, total_claimed_amount, transaction_hash, status) VALUES($1, $2, $3, $4) RETURNING *'
-      , [claim.user_id, claim.total_claimed_amount, claim.transaction_hash, claim.status]
+      'INSERT INTO claim(user_id, amount, total_claimed_amount, transaction_hash, status) VALUES($1, $2, $3, $4, $5) RETURNING *'
+      , [claim.user_id, claim.amount, claim.total_claimed_amount, claim.transaction_hash, claim.status]
     );
     return result.rows[0];
   }
@@ -44,5 +44,13 @@ export class PgClaimRepository implements IClaimRepository {
   async findByTransactionHash(transactionHash: string): Promise<Claim | null> {
     const result = await this.db.query<Claim>('SELECT * FROM claim WHERE transaction_hash = $1', [transactionHash]);
     return result.rows[0] || null;
+  }
+
+  async getTotalClaimedAmountByUserId(userId: number): Promise<number> {
+    const result = await this.db.query<{ sum: string }>(
+      'SELECT SUM(amount) FROM claim WHERE user_id = $1',
+      [userId]
+    );
+    return parseFloat(result.rows[0].sum || '0');
   }
 }

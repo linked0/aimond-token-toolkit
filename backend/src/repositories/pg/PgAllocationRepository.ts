@@ -45,4 +45,14 @@ export class PgAllocationRepository implements IAllocationRepository {
     const result = await this.db.query<Allocation>('SELECT * FROM allocation WHERE claim_id = $1', [claimId]);
     return result.rows;
   }
+
+  async findUnclaimed(): Promise<Allocation[]> {
+    const result = await this.db.query<Allocation>('SELECT * FROM allocation WHERE is_claimed = FALSE');
+    return result.rows;
+  }
+
+  async findUnclaimedByUserId(userId: number): Promise<Allocation[]> {
+    const result = await this.db.query<Allocation>('SELECT * FROM allocation WHERE is_claimed = FALSE AND user_id = $1', [userId]);
+    return result.rows;
+  }
 }

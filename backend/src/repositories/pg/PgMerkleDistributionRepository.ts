@@ -40,4 +40,8 @@ export class PgMerkleDistributionRepository implements IMerkleDistributionReposi
     const result = await this.db.query<MerkleDistribution>('SELECT * FROM merkle_distribution WHERE is_active = TRUE LIMIT 1');
     return result.rows[0] || null;
   }
+
+  async deactivateAll(): Promise<void> {
+    await this.db.query('UPDATE merkle_distribution SET is_active = FALSE WHERE is_active = TRUE');
+  }
 }

@@ -1,10 +1,15 @@
 import express from 'express';
+import dotenv from 'dotenv';
 import pool from './database/db'; // Import the pool from db.ts
 import { PgUserRepository } from './repositories/pg/PgUserRepository';
 import { PgAllocationRepository } from './repositories/pg/PgAllocationRepository';
 import userRoutes from './routes/userRoutes';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './swagger';
+import { generateMerkleTree } from './services/merkleTreeService';
+import { startClaimedEventListener } from './services/eventListenerService';
+
+dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -41,6 +46,26 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use('/api', userRoutes);
 
-app.listen(port, () => {
+app.listen(port, async () => {
   console.log(`Server is running on http://localhost:${port}`);
+  
 });
+
+// Periodic Merkle Tree Generation
+const intervalSeconds = parseInt(process.env.MERKLE_TREE_GENERATION_INTERVAL_SECONDS || '0', 10);
+
+if (intervalSeconds > 0) {
+  console.log(`[Scheduler] Starting periodic Merkle tree generation every ${intervalSeconds} seconds.`);
+  setInterval(async () => {
+    try {
+      await generateMerkleTree();
+    } catch (error) {
+      console.error('[Scheduler] Error during scheduled Merkle tree generation:', error);
+    }
+  }, intervalSeconds * 1000);
+} else {
+  console.log('[Scheduler] Periodic Merkle tree generation is disabled.');
+}
+
+// Start listening for Claimed events
+startClaimedEventListener();
