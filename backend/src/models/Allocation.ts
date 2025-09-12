@@ -1,4 +1,4 @@
-export type AllocationType = 'SPENDING_REWARD' | 'REFERRAL_REWARD' | 'AIRDROP';
+export type AllocationType = 'SPENDING_REWARD' | 'REFERRAL_REWARD' | 'AIRDROP' | 'PAID_MEMBER';
 
 export interface Allocation {
   allocation_id: number;

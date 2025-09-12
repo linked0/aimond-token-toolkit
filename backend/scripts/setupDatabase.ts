@@ -1,6 +1,8 @@
 import pool from '../src/database/db';
+import { ethers } from 'ethers';
 
 const setupDatabase = async () => {
+  console.log('[setupDatabase] Starting database setup...');
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -35,7 +37,7 @@ const setupDatabase = async () => {
         claim_id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES "user"(user_id),
         amount DECIMAL(20, 8) NOT NULL,
-        total_claimed_amount DECIMAL(20, 8),
+        total_claimed_amount DECIMAL(20, 8) DEFAULT 0,
         transaction_hash VARCHAR(255),
         status VARCHAR(50),
         claim_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -76,11 +78,40 @@ const setupDatabase = async () => {
         proof_id SERIAL PRIMARY KEY,
         distribution_id INTEGER REFERENCES merkle_distribution(distribution_id),
         user_id INTEGER REFERENCES "user"(user_id) NOT NULL,
-        amount DECIMAL(20, 8) NOT NULL,
+        amount TEXT NOT NULL,
         proof TEXT[] NOT NULL
       );
     `);
     console.log('merkle_proof table created.');
+
+    console.log('Seeding initial data...');
+
+    const NUM_TEST_USERS = 5; // Generate 5 random test users
+    const testData: { walletAddress: string }[] = [];
+    for (let i = 0; i < NUM_TEST_USERS; i++) {
+      const wallet = ethers.Wallet.createRandom();
+      testData.push({ walletAddress: wallet.address });
+    }
+
+    const usersToCreate = testData.map(data => ({
+      wallet_address: data.walletAddress,
+      total_spending_for_amd_allocation: '0',
+      total_spent_money: '0',
+      is_paid_member: false,
+    }));
+
+    if (usersToCreate.length > 0) {
+        const userValues = usersToCreate.map(user => `('${user.wallet_address}', '0', '0', false)`).join(',');
+        const userInsertQuery = `INSERT INTO "user" (wallet_address, total_spending_for_amd_allocation, total_spent_money, is_paid_member) VALUES ${userValues} RETURNING user_id, wallet_address`;
+
+        console.log('Creating users...');
+        const insertedUsers = await client.query(userInsertQuery);
+        insertedUsers.rows.forEach(user => {
+          console.log(`Created user with wallet address: ${user.wallet_address}`);
+        });
+    }
+
+    console.log('Initial data seeded.');
 
     await client.query('COMMIT');
     console.log('Database setup complete.');

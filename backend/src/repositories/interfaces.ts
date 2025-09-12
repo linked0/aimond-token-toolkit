@@ -21,6 +21,8 @@ export interface IAllocationRepository {
   delete(id: number): Promise<boolean>;
   findByUserId(userId: number): Promise<Allocation[]>;
   findByClaimId(claimId: number): Promise<Allocation[]>;
+  findUnclaimed(): Promise<Allocation[]>;
+  findUnclaimedByUserId(userId: number): Promise<Allocation[]>;
 }
 
 export interface IClaimRepository {
@@ -30,6 +32,7 @@ export interface IClaimRepository {
   delete(id: number): Promise<boolean>;
   findByUserId(userId: number): Promise<Claim[]>;
   findByTransactionHash(transactionHash: string): Promise<Claim | null>;
+  getTotalClaimedAmountByUserId(userId: number): Promise<number>;
 }
 
 export interface IMerkleDistributionRepository {

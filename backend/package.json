@@ -10,7 +10,10 @@
     "db:drop-tables": "ts-node -r dotenv/config scripts/dropObsoleteTables.ts"
   },
   "dependencies": {
+    "ethers": "^6.15.0",
     "express": "^5.1.0",
+    "keccak256": "^1.0.6",
+    "merkletreejs": "^0.5.2",
     "pg": "^8.16.3",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1"

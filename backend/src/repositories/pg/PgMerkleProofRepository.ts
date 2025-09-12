@@ -14,7 +14,7 @@ export class PgMerkleProofRepository implements IMerkleProofRepository {
   async create(proof: Omit<MerkleProof, 'proof_id'>): Promise<MerkleProof> {
     const result = await this.db.query<MerkleProof>(
       'INSERT INTO merkle_proof(distribution_id, user_id, amount, proof) VALUES($1, $2, $3, $4) RETURNING *'
-      , [proof.distribution_id, proof.user_id, proof.amount, JSON.stringify(proof.proof)] // Store proof as JSON string
+      , [proof.distribution_id, proof.user_id, proof.amount, proof.proof] // Store proof as array
     );
     return result.rows[0];
   }

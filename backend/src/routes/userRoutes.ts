@@ -1,12 +1,39 @@
 import express from 'express';
+import { BaseContract, ContractTransactionResponse, ethers } from "ethers";
+import * as fs from 'fs';
+import { loyaltyPointAddress, loyaltyPointABI } from '../constants/contracts';
+import { chains } from '../constants/chains';
 import { PgUserRepository } from '../repositories/pg/PgUserRepository';
 import { PgAllocationRepository } from '../repositories/pg/PgAllocationRepository';
+import { PgMerkleDistributionRepository } from '../repositories/pg/PgMerkleDistributionRepository';
+import { PgMerkleProofRepository } from '../repositories/pg/PgMerkleProofRepository';
+import { PgClaimRepository } from '../repositories/pg/PgClaimRepository';
 import pool from '../database/db'; // Import the pool from db.ts
+import { generateMerkleTree } from '../services/merkleTreeService';
+import { checkKeystorePassword } from '../utils/authUtils';
 
+// Define an interface with ONLY your contract's functions
+export interface LoyaltyPointContractMethods {
+  claimForUser(
+    userAddress: string,
+    amount: string | bigint,
+    proof: string[]
+  ): Promise<ContractTransactionResponse>;
+  merkleRoot(): Promise<string>;
+  updateRoot(_root: string): Promise<ContractTransactionResponse>;
+}
+
+// Combine your methods with the base contract type
+export type LoyaltyPointContract = BaseContract & LoyaltyPointContractMethods;
+
+// Combine your methods with the base contract type
 const router = express.Router();
 
 const userRepository = new PgUserRepository(pool);
 const allocationRepository = new PgAllocationRepository(pool);
+const merkleDistributionRepository = new PgMerkleDistributionRepository(pool);
+const merkleProofRepository = new PgMerkleProofRepository(pool);
+const claimRepository = new PgClaimRepository(pool);
 
 const PAID_MEMBER_THRESHOLD = 9.5; // $9.5 threshold for a paid new member
 const AMD_ALLOCATION_RATE = 1000; // 1000 AMD per $1
@@ -61,23 +88,27 @@ const MAX_SPENDING_FOR_AMD = 5000000; // $5,000,000 cap
 router.get('/points', async (req, res) => {
   try {
     const users = await userRepository.findAll();
-    const result: { address: string; referralAmount: string; paidPointAmount: string; airdropAmount: string; status: string; }[] = [];
+    const result: { address: string; referralAmount: number; paidPointAmount: number; airdropAmount: number; paidMemberAmount: number; status: string; totalClaimedAmount: number; }[] = []; // Changed to number
 
     for (const user of users) {
       const allocations = await allocationRepository.findByUserId(user.user_id);
+      const totalClaimedAmount = await claimRepository.getTotalClaimedAmountByUserId(user.user_id); // Fetch total claimed amount
 
-      let referralAmount = '0';
-      let paidPointAmount = '0';
-      let airdropAmount = '0';
+      let referralAmount = 0;
+      let paidPointAmount = 0;
+      let airdropAmount = 0;
+      let paidMemberAmount = 0; // Added
       let hasUnclaimedAllocations = false;
 
       for (const alloc of allocations) {
         if (alloc.type === 'REFERRAL_REWARD') {
-          referralAmount = (parseFloat(referralAmount) + parseFloat(alloc.amount)).toString();
+          referralAmount = referralAmount + parseFloat(alloc.amount);
         } else if (alloc.type === 'SPENDING_REWARD') {
-          paidPointAmount = (parseFloat(paidPointAmount) + parseFloat(alloc.amount)).toString();
+          paidPointAmount = paidPointAmount + parseFloat(alloc.amount);
         } else if (alloc.type === 'AIRDROP') {
-          airdropAmount = (parseFloat(airdropAmount) + parseFloat(alloc.amount)).toString();
+          airdropAmount = airdropAmount + parseFloat(alloc.amount);
+        } else if (alloc.type === 'PAID_MEMBER') { // Added
+          paidMemberAmount = paidMemberAmount + parseFloat(alloc.amount); // Added
         }
 
         if (!alloc.is_claimed) {
@@ -91,6 +122,8 @@ router.get('/points', async (req, res) => {
         paidPointAmount: paidPointAmount,
         airdropAmount: airdropAmount,
         status: hasUnclaimedAllocations ? 'Unclaimed' : 'All Claimed',
+        totalClaimedAmount: totalClaimedAmount, // Changed to number
+        paidMemberAmount: paidMemberAmount, // Added
       });
     }
 
@@ -102,8 +135,8 @@ router.get('/points', async (req, res) => {
 });
 
 // Helper function to round up to one decimal place
-const roundUpToOneDecimal = (num: number): string => {
-  return (Math.ceil(num * 10) / 10).toFixed(1);
+const roundUpToOneDecimal = (num: number): number => { // Changed return type to number
+  return Math.ceil(num * 10) / 10; // Removed .toFixed(1)
 };
 
 /**
@@ -217,10 +250,10 @@ router.post('/spending-reward', async (req, res) => {
       }
 
       // Apply rounding rule
-      memberRewardAIM = parseFloat(roundUpToOneDecimal(memberRewardAIM));
-      referrerRewardAIM = parseFloat(roundUpToOneDecimal(referrerRewardAIM));
+      memberRewardAIM = roundUpToOneDecimal(memberRewardAIM);
+      referrerRewardAIM = roundUpToOneDecimal(referrerRewardAIM);
       if (referrerReferrerRewardAIM !== null) {
-        referrerReferrerRewardAIM = parseFloat(roundUpToOneDecimal(referrerReferrerRewardAIM));
+        referrerReferrerRewardAIM = roundUpToOneDecimal(referrerReferrerRewardAIM);
       }
 
       // Update user as paid member
@@ -233,7 +266,7 @@ router.post('/spending-reward', async (req, res) => {
       await allocationRepository.create({
         user_id: user.user_id,
         amount: memberRewardAIM.toString(),
-        type: 'SPENDING_REWARD', // New type
+        type: 'PAID_MEMBER', // New type for paid member allocation
         source_info: `AMD for becoming Paid Member (Block ${blockNumber})`,
         is_claimed: false,
         claim_id: null,
@@ -341,6 +374,11 @@ router.post('/referral', async (req, res) => {
     return res.status(400).send('Referrer and referred wallet addresses are required');
   }
 
+  if (referrer_wallet_address === referred_wallet_address) {
+    console.error('Referrer wallet address and referred wallet address cannot be the same.');
+    return res.status(400).send('Referrer wallet address and referred wallet address cannot be the same.');
+  }
+
   try {
     let referrerUser = await userRepository.findByWalletAddress(referrer_wallet_address);
     if (!referrerUser) {
@@ -359,6 +397,23 @@ router.post('/referral', async (req, res) => {
         // If already referred by someone else, return a message
         return res.status(409).json({ message: 'User has already been referred by another user.' });
       }
+    }
+
+    // Create a referral reward allocation for the referrer
+    if (referrerUser) {
+      const referralRewardAmount = 1000; // Placeholder amount, adjust as needed
+      await allocationRepository.create({
+        user_id: referrerUser.user_id,
+        amount: referralRewardAmount.toString(),
+        type: 'REFERRAL_REWARD',
+        source_info: `Referral link established with ${referredUser.wallet_address}`,
+        is_claimed: false,
+        claim_id: null,
+      });
+      console.log(`[Backend] Created referral reward for referrer ${referrerUser.wallet_address}`);
+      // Trigger Merkle tree generation immediately after new allocation
+      await generateMerkleTree();
+      console.log('[Backend] Merkle tree generation triggered after referral.');
     }
 
     res.status(200).json({ message: 'Referral link established successfully.', referredUser });
@@ -439,6 +494,178 @@ router.post('/airdrop', async (req, res) => {
     console.error('Error adding airdrop:', error);
     res.status(500).send('Error adding airdrop');
   }
+});
+
+/**
+ * @swagger
+ * /api/claim:
+ *   post:
+ *     summary: Get the Merkle proof for a user to claim their rewards.
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - wallet_address
+ *             properties:
+ *               wallet_address:
+ *                 type: string
+ *                 description: The wallet address of the user.
+ *                 example: "0xC4f9004d8348E9d43c5c080ab0592Fc70c61657f"
+ *     responses:
+ *       200:
+ *         description: The Merkle proof and cumulative amount for the user.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   type: string
+ *                 cumulativeAmount:
+ *                   type: string
+ *                   description: The cumulative amount of the user's rewards.
+ *                 proof:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                     format: byte
+ *                   description: The Merkle proof.
+ *       404:
+ *         description: User or proof not found.
+ *       500:
+ *         description: Server error.
+ */
+router.post('/claim', async (req, res) => {
+  const { wallet_address } = req.body;
+
+  if (!wallet_address) {
+    return res.status(400).send('Wallet address is required');
+  }
+
+  try {
+    const user = await userRepository.findByWalletAddress(wallet_address);
+    if (!user) {
+      return res.status(404).send('User not found');
+    }
+
+    const activeDistribution = await merkleDistributionRepository.findActive();
+    if (!activeDistribution) {
+      return res.status(404).send('No active distribution found');
+    }
+
+    const merkleProof = await merkleProofRepository.findByDistributionAndUser(activeDistribution.distribution_id, user.user_id);
+    if (!merkleProof) {
+      return res.status(404).send('Proof not found for this user in the active distribution');
+    }
+
+    res.json({
+      user: user.wallet_address,
+      cumulativeAmount: ethers.formatUnits(merkleProof.amount, 18),
+      proof: merkleProof.proof,
+    });
+
+  } catch (error) {
+    console.error('Error fetching claim info:', error);
+    res.status(500).send('Error fetching claim info');
+  }
+});
+
+
+
+router.post('/release-batch', async (req, res) => {
+    console.log('[Backend] /api/release-batch endpoint called');
+    const { addresses } = req.body;
+    console.log(`[Backend] Received batch release request for ${addresses.length} addresses.`);
+
+    if (!addresses || !Array.isArray(addresses) || addresses.length === 0) {
+        console.log('[Backend] Invalid request: No addresses provided.');
+        return res.status(400).send('An array of addresses is required');
+    }
+
+    try {
+        const keystorePath = './keystore/keystore-loyalty-point-admin.json';
+        const keystoreJson = fs.readFileSync(keystorePath, 'utf8');
+        const password = checkKeystorePassword();
+
+        const wallet = await ethers.Wallet.fromEncryptedJson(keystoreJson, password);
+        console.log('[Backend] Wallet loaded successfully.');
+        
+        const provider = new ethers.JsonRpcProvider(chains.bscTestnet.rpcUrls[0]);
+        const connectedWallet = wallet.connect(provider);
+        const loyaltyPointContract = new ethers.Contract(loyaltyPointAddress, loyaltyPointABI, connectedWallet) as unknown as LoyaltyPointContract;
+
+        interface BatchResult {
+            address: string;
+            success: boolean;
+            txHash: string | null;
+            error: string | null;
+        }
+        const results: BatchResult[] = [];
+
+        for (const address of addresses) {
+            console.log(`[Backend] Processing address: ${address}`);
+            try {
+                const user = await userRepository.findByWalletAddress(address);
+                if (!user) {
+                    console.warn(`[Backend] User not found for address: ${address}`);
+                    throw new Error('User not found');
+                }
+
+                const activeDistribution = await merkleDistributionRepository.findActive();
+                if (!activeDistribution) {
+                    console.warn('[Backend] No active distribution found.');
+                    throw new Error('No active distribution found');
+                }
+
+                const merkleProof = await merkleProofRepository.findByDistributionAndUser(activeDistribution.distribution_id, user.user_id);
+                if (!merkleProof) {
+                    console.warn(`[Backend] Proof not found for user ${user.user_id} in active distribution.`);
+                    throw new Error('Proof not found for this user in the active distribution');
+                }
+
+                console.log(`[Backend] Attempting to claim for user ${user.wallet_address} with amount ${merkleProof.amount}.`);
+                const tx = await loyaltyPointContract.claimForUser(user.wallet_address, ethers.toBigInt(merkleProof.amount), merkleProof.proof);
+                console.log(`[Backend] Transaction sent for ${user.wallet_address}. Tx hash: ${tx.hash}`);
+                const receipt = await tx.wait();
+
+                if (!receipt) {
+                    console.error(`[Backend] Transaction failed for ${user.wallet_address}: no receipt was returned.`);
+                    throw new Error('Transaction failed: no receipt was returned.');
+                }
+                
+                console.log(`[Backend] Transaction confirmed for ${user.wallet_address}. Receipt: ${receipt.hash}`);
+                results.push({
+                    address: address,
+                    success: true,
+                    txHash: receipt.hash,
+                    error: null
+                });
+
+            } catch (error: any) {
+                console.error(`[Backend] Error processing address ${address}: ${error.message}`);
+                results.push({
+                    address: address,
+                    success: false,
+                    txHash: null,
+                    error: error.message
+                });
+            }
+        }
+
+        console.log('[Backend] Batch release process completed.');
+        res.json({
+            message: 'Batch release process finished.',
+            results: results
+        });
+
+    } catch (error: unknown) {
+        console.error('[Backend] Error during batch release:', (error as Error).message);
+        res.status(500).send(`Error during batch release: ${(error as Error).message}`);
+    }
 });
 
 export default router;
