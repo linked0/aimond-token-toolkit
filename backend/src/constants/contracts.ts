@@ -1,4 +1,4 @@
-export const loyaltyPointAddress = "0xd923F400535e1355d72626E2017842D0c6309bF1"; // TODO: Replace with your contract address
+export const loyaltyPointAddress = process.env.LOYALTY_POINT_ADDRESS || "0xd923F400535e1355d72626E2017842D0c6309bF1"; // TODO: Replace with your contract address or provide a default
 
 export const loyaltyPointABI = [
   {

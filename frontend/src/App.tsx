@@ -3,6 +3,9 @@ import LoyaltyPointAdmin from './components/LoyaltyPointAdmin';
 import LoyaltyPointBasic from './components/LoyaltyPointBasic';
 import SampleDataInput from './components/SampleDataInput';
 import Sidebar from './components/Sidebar';
+import VestingAdmin from './components/VestingAdmin';
+import CreateVestingSchedule from './components/CreateVestingSchedule';
+import { menuItems, MenuItem } from './components/Sidebar'; // Import menuItems and MenuItem
 import './App.css';
 
 // To avoid TypeScript errors for window.ethereum
@@ -28,6 +31,13 @@ function App() {
   const [view, setView] = useState('loyalty');
   const [activeItem, setActiveItem] = useState('Loyalty Point');
   console.log("walletAddress: ", walletAddress);
+
+  useEffect(() => {
+    const currentMenuItem = menuItems.find(item => item.view === view);
+    if (currentMenuItem && activeItem !== currentMenuItem.name) {
+      setActiveItem(currentMenuItem.name);
+    }
+  }, [view, activeItem]);
 
   // This effect runs once when the component mounts to check for a pre-existing connection
   const refreshPoints = async () => {
@@ -112,6 +122,12 @@ function App() {
       );
     }
 
+    if (view === 'vestingAdmin') {
+      return <VestingAdmin setView={setView} setActiveItem={setActiveItem} />;
+    }
+    if (view === 'createVestingSchedule') {
+      return <CreateVestingSchedule />;
+    }
     // Placeholder for other views
     return <div>{view}</div>;
   };
