@@ -1,22 +1,19 @@
 import { useState } from "react";
 
 const imgImage1 = "/assets/loyalty-card.png";
-const imgTicket = "/assets/ticket.svg";
 const imgChart = "/assets/chart.svg";
 const imgDocument = "/assets/document.svg";
-const imgActivity = "/assets/activity.svg";
 
-interface MenuItem {
+export interface MenuItem {
     name: string;
     icon: string;
     view: string;
 }
 
-const menuItems: MenuItem[] = [
+export const menuItems: MenuItem[] = [
     { name: 'Loyalty Point', icon: imgChart, view: 'loyalty' },
-    { name: 'Investor Vesting', icon: imgTicket, view: 'investor' },
-    { name: 'Founder Vesting', icon: imgDocument, view: 'founder' },
-    { name: 'Employee Vesting', icon: imgActivity, view: 'employee' },
+    { name: 'Vesting Admin', icon: imgDocument, view: 'vestingAdmin' },
+    { name: 'Create Vesting', icon: imgDocument, view: 'createVestingSchedule' }, // Added Create Vesting
     { name: 'Sample Data', icon: imgDocument, view: 'sampleData' },
 ];
 
