@@ -10,6 +10,7 @@ import {
   investorVestingAddress,
   mockVestingAddress,
 } from '../constants/contracts';
+import { listenForVestingScheduleCreated } from '../utils/eventListeners';
 
 const imgImage1 = "http://localhost:3845/assets/61efd074028aa96a1e9eef1d0a7e03d7a1e8d1d9.png";
 const imgImage11 = "http://localhost:3845/assets/1ed94ff64da2f3f54ae899366804c1f3be74ddb3.png";
@@ -160,6 +161,11 @@ export default function CreateVestingSchedule() {
                   return;
               }
 
+              if (!vestingAddress || !vestingQuantity) {
+                alert('Please enter both recipient address and vesting quantity.');
+                return;
+              }
+
               if (!window.ethereum) {
                 alert('MetaMask or a compatible Ethereum wallet is not installed.');
                 return;
@@ -167,12 +173,47 @@ export default function CreateVestingSchedule() {
 
               try {
                 const provider = new BrowserProvider(window.ethereum);
-                const contract = new ethers.Contract(contractAddress, contractABI, provider);
-                const cliffDuration = await contract.cliffDurationInDays();
-                alert(`${contractName} Cliff Duration: ${cliffDuration.toString()} days`);
-              } catch (error) {
-                console.error('Error fetching cliff duration:', error);
-                alert(`Failed to fetch cliff duration for ${contractName}. See console for details.`);
+                const signer = await provider.getSigner(); // Get the signer from the connected wallet
+                const contract = new ethers.Contract(contractAddress, contractABI, signer); // Use signer for state-changing calls
+
+                const beneficiary = vestingAddress;
+                const totalAmount = ethers.parseUnits(vestingQuantity, 18); // Convert to BigNumber with 18 decimals
+
+                alert(`Sending transaction to create ${contractName} vesting schedule for ${beneficiary} with amount ${vestingQuantity}...`);
+
+                const tx = await contract.createVesting(beneficiary, totalAmount);
+                alert(`Transaction sent! Tx Hash: ${tx.hash}
+Waiting for confirmation...`);
+
+                const receipt = await tx.wait(); // Wait for the transaction to be mined
+
+                if (receipt && receipt.status === 1) {
+                  alert(`${contractName} Vesting Schedule created successfully!
+Tx Hash: ${receipt.hash}`);
+
+                  // Start listening for the VestingScheduleCreated event
+                  listenForVestingScheduleCreated(contract, (beneficiary, totalVestingDuration, cliffDuration, releaseDuration, installmentCount, totalAmount) => {
+                    alert(`VestingScheduleCreated event received for beneficiary: ${beneficiary}, amount: ${totalAmount.toString()}`);
+                    // You can add further UI updates or logic here based on the event
+                  });
+
+                } else {
+                  alert(`Failed to create ${contractName} Vesting Schedule. Transaction reverted.
+Tx Hash: ${receipt?.hash || 'N/A'}`);
+                }
+
+              } catch (error: any) {
+                console.error('Error creating vesting schedule:', error);
+                let errorMessage = `Failed to create ${contractName} Vesting Schedule.`;
+                if (error.message) {
+                  errorMessage += `
+Error: ${error.message}`;
+                }
+                if (error.code) {
+                  errorMessage += ` (Code: ${error.code})`;
+                }
+                alert(`${errorMessage}
+See console for more details.`);
               }
             }}
           >
