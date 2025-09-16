@@ -3322,12 +3322,12 @@ export const mockVestingABI = [
         },
         {
           "internalType": "uint256",
-          "name": "_cliffDurationInDays",
+          "name": "_cliffDurationInSeconds",
           "type": "uint256"
         },
         {
           "internalType": "uint256",
-          "name": "_vestingDurationInDays",
+          "name": "_vestingDurationInSeconds",
           "type": "uint256"
         },
         {
@@ -3896,7 +3896,7 @@ export const mockVestingABI = [
     },
     {
       "inputs": [],
-      "name": "cliffDurationInDays",
+      "name": "cliffDurationInSeconds",
       "outputs": [
         {
           "internalType": "uint256",
@@ -3920,7 +3920,7 @@ export const mockVestingABI = [
           "type": "uint256"
         }
       ],
-      "name": "createVestingSchedule",
+      "name": "createVesting",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
@@ -4243,6 +4243,29 @@ export const mockVestingABI = [
     {
       "inputs": [
         {
+          "internalType": "uint256",
+          "name": "_cliffDurationInSeconds",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_vestingDurationInSeconds",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_installmentCount",
+          "type": "uint256"
+        }
+      ],
+      "name": "setVestingParameters",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
           "internalType": "bytes4",
           "name": "interfaceId",
           "type": "bytes4"
@@ -4353,7 +4376,7 @@ export const mockVestingABI = [
     },
     {
       "inputs": [],
-      "name": "vestingDurationInDays",
+      "name": "vestingDurationInSeconds",
       "outputs": [
         {
           "internalType": "uint256",
