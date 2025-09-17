@@ -1,3 +1,4 @@
+import Jazzicon from './Jazzicon';
 import React, { useState } from 'react';
 import { ethers, BrowserProvider } from 'ethers';
 import {
@@ -12,16 +13,7 @@ import {
 } from '../constants/contracts';
 import { listenForVestingScheduleCreated } from '../utils/eventListeners';
 
-const imgImage1 = "http://localhost:3845/assets/61efd074028aa96a1e9eef1d0a7e03d7a1e8d1d9.png";
-const imgImage11 = "http://localhost:3845/assets/1ed94ff64da2f3f54ae899366804c1f3be74ddb3.png";
-const imgImage9 = "http://localhost:3845/assets/f3ea69cf1d730c80059ab8535ad3aba56c43b94c.png";
-const imgImage12 = "http://localhost:3845/assets/030c05192da4d93b6c814a2ca95588fb343c1150.png";
-const imgDocument = "http://localhost:3845/assets/341a1df35fe58500cd53c6a3285273c0ae19f457.svg";
-const imgActivity = "http://localhost:3845/assets/b9a06a8ea7727b6112fc48a1ea42e3311e517406.svg";
-const imgCategory = "http://localhost:3845/assets/a0780ca1ddab4ba69dcc5cbbf001b03f512a41a1.svg";
-const imgTicket = "http://localhost:3845/assets/26dc285d6123c704fcead993203a95bfacfe2e9c.svg";
-const imgChart = "http://localhost:3845/assets/b0c7e6f5fe9ebe343217871c27c56e843e34b836.svg";
-const imgBg = "http://localhost:3845/assets/507932cbecfd97d1d83084a16b8a00c58a3f2988.svg";
+
 
 export default function CreateVestingSchedule() {
   const [selectedVestingType, setSelectedVestingType] = useState('Investor');
@@ -54,17 +46,11 @@ export default function CreateVestingSchedule() {
             <p className="leading-[normal]">0x23...BC</p>
           </div>
         </div>
-        <div className="absolute contents left-[54px] top-12" data-name="Address Image" data-node-id="2615:179">
-          <div className="absolute h-[30px] left-[54.32px] top-12 w-[27.485px]" data-name="bg" data-node-id="2615:180">
-            <img alt="" className="block max-w-none size-full" src={imgBg} />
-          </div>
-          <div className="absolute bg-center bg-cover bg-no-repeat left-[54px] size-[30px] top-12" data-name="image 11" data-node-id="2615:210" style={{ backgroundImage: `url('${imgImage11}')` }} />
+        <div className="absolute left-[54px] top-12" data-name="Address Image" data-node-id="2615:179">
+          <Jazzicon address="0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2" size={30} />
         </div>
-        <div className="absolute contents left-[554px] top-[52px]" data-name="button" data-node-id="2615:185">
-          <div className="absolute bg-[#e71d36] h-[27px] left-[554px] opacity-90 rounded-[33px] top-[52px] w-[132px]" data-node-id="2615:186" />
-          <div className="absolute font-['Nunito:Regular',_sans-serif] font-normal h-3.5 leading-[0] left-[573px] text-[14px] text-white top-[55px] w-[102px]" data-node-id="2615:187">
-            <p className="leading-[normal]">Approve (1/4)</p>
-          </div>
+        <div className="absolute left-[554px] top-[52px] w-[132px] h-[27px] bg-[#e71d36] opacity-90 rounded-[33px] flex items-center justify-center" data-name="button" data-node-id="2615:185">
+          <p className="text-white text-[14px] font-['Nunito:Regular',_sans-serif]">Approve (1/4)</p>
         </div>
         <div className="absolute bg-white h-[60px] left-9 rounded-[10px] shadow-[1px_17px_44px_0px_rgba(3,2,41,0.07)] top-[122px] w-[478px]" data-name="bg" data-node-id="2615:189" />
         <div className="absolute contents left-[376px] top-[140px]" data-name="Paid Point" data-node-id="2615:190">
@@ -82,17 +68,11 @@ export default function CreateVestingSchedule() {
             <p className="leading-[normal]">0x51...A1</p>
           </div>
         </div>
-        <div className="absolute contents left-[54px] top-[137px]" data-name="Address Image" data-node-id="2615:196">
-          <div className="absolute h-[30px] left-[54.32px] top-[137px] w-[27.485px]" data-name="bg" data-node-id="2615:197">
-            <img alt="" className="block max-w-none size-full" src={imgBg} />
-          </div>
-          <div className="absolute bg-center bg-cover bg-no-repeat left-[54px] size-[30px] top-[137px]" data-name="image 9" data-node-id="2615:204" style={{ backgroundImage: `url('${imgImage9}')` }} />
+        <div className="absolute left-[54px] top-[137px]" data-name="Address Image" data-node-id="2615:196">
+          <Jazzicon address="0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db" size={30} />
         </div>
-        <div className="absolute contents left-[554px] top-[141px]" data-name="button" data-node-id="2615:199">
-          <div className="absolute bg-[#e71d36] h-[27px] left-[554px] opacity-90 rounded-[33px] top-[141px] w-[132px]" data-node-id="2615:200" />
-          <div className="absolute font-['Nunito:Regular',_sans-serif] font-normal h-3.5 leading-[0] left-[573px] text-[14px] text-white top-36 w-[102px]" data-node-id="2615:201">
-            <p className="leading-[normal]">Approve (2/4)</p>
-          </div>
+        <div className="absolute left-[554px] top-[141px] w-[132px] h-[27px] bg-[#e71d36] opacity-90 rounded-[33px] flex items-center justify-center" data-name="button" data-node-id="2615:199">
+          <p className="text-white text-[14px] font-['Nunito:Regular',_sans-serif]">Approve (2/4)</p>
         </div>
         <div className="absolute bg-white h-[60px] left-9 rounded-[10px] shadow-[1px_17px_44px_0px_rgba(3,2,41,0.07)] top-[211px] w-[478px]" data-name="bg" data-node-id="2615:212" />
         <div className="absolute contents left-[376px] top-[229px]" data-name="Paid Point" data-node-id="2615:213">
@@ -110,17 +90,11 @@ export default function CreateVestingSchedule() {
             <p className="leading-[normal]">0x76...01</p>
           </div>
         </div>
-        <div className="absolute contents left-[54px] top-[226px]" data-name="Address Image" data-node-id="2615:219">
-          <div className="absolute h-[30px] left-[54.32px] top-[226px] w-[27.485px]" data-name="bg" data-node-id="2615:220">
-            <img alt="" className="block max-w-none size-full" src={imgBg} />
-          </div>
-          <div className="absolute bg-center bg-cover bg-no-repeat left-[54px] size-[30px] top-[226px]" data-name="image 12" data-node-id="2615:227" style={{ backgroundImage: `url('${imgImage12}')` }} />
+        <div className="absolute left-[54px] top-[226px]" data-name="Address Image" data-node-id="2615:219">
+          <Jazzicon address="0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabaB" size={30} />
         </div>
-        <div className="absolute contents left-[554px] top-[230px]" data-name="button" data-node-id="2615:222">
-          <div className="absolute bg-[#b3b3bf] h-[27px] left-[554px] opacity-20 rounded-[33px] top-[230px] w-[132px]" data-node-id="2615:223" />
-          <div className="absolute font-['Nunito:Regular',_sans-serif] font-normal h-3.5 leading-[0] left-[584px] text-[14px] text-black top-[233px] w-[69px]" data-node-id="2615:224">
-            <p className="leading-[normal]">Approved</p>
-          </div>
+        <div className="absolute left-[554px] top-[230px] w-[132px] h-[27px] rounded-[33px] flex items-center justify-center" data-name="button" data-node-id="2615:222" style={{backgroundColor: 'rgba(179, 179, 191, 0.2)'}}>
+          <p className="text-black text-[14px] font-['Nunito:Regular',_sans-serif]">Approved</p>
         </div>
       </div>
       <div className="absolute h-28 left-[0px] overflow-clip top-[123px] w-[775px]" data-name="New Vesting" data-node-id="2615:136">
@@ -182,14 +156,12 @@ export default function CreateVestingSchedule() {
                 alert(`Sending transaction to create ${contractName} vesting schedule for ${beneficiary} with amount ${vestingQuantity}...`);
 
                 const tx = await contract.createVesting(beneficiary, totalAmount);
-                alert(`Transaction sent! Tx Hash: ${tx.hash}
-Waiting for confirmation...`);
+                alert(`Transaction sent! Tx Hash: ${tx.hash}\nWaiting for confirmation...`);
 
                 const receipt = await tx.wait(); // Wait for the transaction to be mined
 
                 if (receipt && receipt.status === 1) {
-                  alert(`${contractName} Vesting Schedule created successfully!
-Tx Hash: ${receipt.hash}`);
+                  alert(`${contractName} Vesting Schedule created successfully!\nTx Hash: ${receipt.hash}`);
 
                   // Start listening for the VestingScheduleCreated event
                   listenForVestingScheduleCreated(contract, (beneficiary, totalVestingDuration, cliffDuration, releaseDuration, installmentCount, totalAmount) => {
@@ -198,26 +170,23 @@ Tx Hash: ${receipt.hash}`);
                   });
 
                 } else {
-                  alert(`Failed to create ${contractName} Vesting Schedule. Transaction reverted.
-Tx Hash: ${receipt?.hash || 'N/A'}`);
+                  alert(`Failed to create ${contractName} Vesting Schedule. Transaction reverted.\nTx Hash: ${receipt?.hash || 'N/A'}`);
                 }
 
               } catch (error: any) {
                 console.error('Error creating vesting schedule:', error);
                 let errorMessage = `Failed to create ${contractName} Vesting Schedule.`;
                 if (error.message) {
-                  errorMessage += `
-Error: ${error.message}`;
+                  errorMessage += `\nError: ${error.message}`;
                 }
                 if (error.code) {
                   errorMessage += ` (Code: ${error.code})`;
                 }
-                alert(`${errorMessage}
-See console for more details.`);
+                alert(`${errorMessage}\nSee console for more details.`);
               }
             }}
           >
-            <p className="leading-[normal]">Submit</p>
+            Submit
           </button>
           <div className="absolute contents left-[375px] top-11" data-name="Paid Point" data-node-id="2615:149">
             <input
@@ -252,11 +221,12 @@ See console for more details.`);
               placeholder="0x..."
             />
           </div>
-          <div className="absolute contents left-[53px] top-[41px]" data-name="Address Image" data-node-id="2615:155">
-            <div className="absolute h-[30px] left-[53.32px] top-[41px] w-[27.485px]" data-name="bg" data-node-id="2615:156">
-              <img alt="" className="block max-w-none size-full" src={imgBg} />
-            </div>
-            <div className="absolute bg-center bg-cover bg-no-repeat left-[53px] size-[30px] top-[41px]" data-name="image 10" data-node-id="2615:207" style={{ backgroundImage: `url('${imgImage11}')` }} />
+          <div className="absolute left-[53px] top-[41px]" data-name="Address Image" data-node-id="2615:155">
+            {vestingAddress ? (
+              <Jazzicon address={vestingAddress} size={30} />
+            ) : (
+              <div className="absolute h-[30px] left-[0px] top-[0px] w-[30px] bg-gray-200 rounded-full" />
+            )}
           </div>
         </div>
         <div className="absolute contents left-[55px] top-0" data-name="Table heading" data-node-id="2615:158">

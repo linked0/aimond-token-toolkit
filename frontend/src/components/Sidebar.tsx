@@ -1,8 +1,10 @@
 import { useState } from "react";
 
 const imgImage1 = "/assets/loyalty-card.png";
-const imgChart = "/assets/chart.svg";
-const imgDocument = "/assets/document.svg";
+const imgLoyaltyPoint = "/assets/loyalty-point.svg";
+const imgVestingAdmin = "/assets/vesting-admin.svg";
+const imgCreateVesting = "/assets/coin.svg";
+const imgSampleData = "/assets/sample-data.svg";
 
 export interface MenuItem {
     name: string;
@@ -11,10 +13,10 @@ export interface MenuItem {
 }
 
 export const menuItems: MenuItem[] = [
-    { name: 'Loyalty Point', icon: imgChart, view: 'loyalty' },
-    { name: 'Vesting Admin', icon: imgDocument, view: 'vestingAdmin' },
-    { name: 'Create Vesting', icon: imgDocument, view: 'createVestingSchedule' }, // Added Create Vesting
-    { name: 'Sample Data', icon: imgDocument, view: 'sampleData' },
+    { name: 'Loyalty Point', icon: imgLoyaltyPoint, view: 'loyalty' },
+    { name: 'Vesting Admin', icon: imgVestingAdmin, view: 'vestingAdmin' },
+    { name: 'Create Vesting', icon: imgCreateVesting, view: 'createVestingSchedule' }, // Added Create Vesting
+    { name: 'Sample Data', icon: imgSampleData, view: 'sampleData' },
 ];
 
 interface SidebarProps {
