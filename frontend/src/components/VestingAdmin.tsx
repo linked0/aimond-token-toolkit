@@ -2,7 +2,7 @@ import React from 'react';
 import Jazzicon from './Jazzicon'; // Import Jazzicon
 
 // Only keep imgPlus if it's used in the "New Vesting Schedule" button
-const imgPlus = "http://localhost:3845/assets/e1514ec954dd3eb265200e1ce27083756b4d0da4.svg";
+const imgPlus = "/assets/plus.svg";
 
 interface VestingItem {
   address: string;
@@ -13,10 +13,10 @@ interface VestingItem {
 }
 
 const vestingData: VestingItem[] = [
-  { address: "0x1234567890abcdef1234567890abcdef12345678", totalVesting: 3000000, totalPayout: 1400000, currentRelease: 100000, status: "Released" },
-  { address: "0xabcdef1234567890abcdef1234567890abcdef12", totalVesting: 2000000, totalPayout: 1500000, currentRelease: 300000, status: "Release (0/4)" },
-  { address: "0x1234567890abcdef1234567890abcdef12345678", totalVesting: 3000000, totalPayout: 2200000, currentRelease: 500000, status: "Released" },
-  { address: "0xabcdef1234567890abcdef1234567890abcdef12", totalVesting: 2500000, totalPayout: 1000000, currentRelease: 300000, status: "Release (3/4)" },
+  { address: "0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2", totalVesting: 3000000, totalPayout: 1400000, currentRelease: 100000, status: "Released" },
+  { address: "0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db", totalVesting: 2000000, totalPayout: 1500000, currentRelease: 300000, status: "Release (0/4)" },
+  { address: "0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabaB", totalVesting: 3000000, totalPayout: 2200000, currentRelease: 500000, status: "Released" },
+  { address: "0x617F2E2fD72FD9D5503197092aC168c91465E7f2", totalVesting: 2500000, totalPayout: 1000000, currentRelease: 300000, status: "Release (3/4)" },
 ];
 
 const truncateAddress = (address: string) => {
