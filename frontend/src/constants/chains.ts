@@ -7,7 +7,7 @@ export const chains = {
             symbol: 'tBNB',
             decimals: 18
         },
-        rpcUrls: ['https://data-seed-prebsc-1-s1.binance.org:8545'],
+        rpcUrls: [process.env.REACT_APP_RPC_BSC_TESTNET || ''],
         blockExplorerUrls: ['https://testnet.bscscan.com']
     },
     // Add other chains here as needed

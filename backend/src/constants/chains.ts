@@ -7,7 +7,7 @@ export const chains = {
             symbol: 'tBNB',
             decimals: 18
         },
-        rpcUrls: [process.env.RPC_URL || ''],
+        rpcUrls: [process.env.RPC_BSC_TESTNET || ''],
         blockExplorerUrls: ['https://testnet.bscscan.com']
     },
     // Add other chains here as needed
