@@ -1,0 +1,4 @@
+
+[submodule "lib/aimond-token"]
+	path = lib/aimond-token
+	url = git@github.com:AimondLabs/aimond-token.git

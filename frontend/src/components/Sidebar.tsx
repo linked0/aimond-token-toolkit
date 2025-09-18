@@ -14,7 +14,10 @@ export interface MenuItem {
 
 export const menuItems: MenuItem[] = [
     { name: 'Loyalty Point', icon: imgLoyaltyPoint, view: 'loyalty' },
-    { name: 'Vesting Admin', icon: imgVestingAdmin, view: 'vestingAdmin' },
+    { name: 'Mock Vesting', icon: imgVestingAdmin, view: 'mockVestingAdmin' },
+    { name: 'Investor Vesting', icon: imgVestingAdmin, view: 'investorVestingAdmin' },
+    { name: 'Founder Vesting', icon: imgVestingAdmin, view: 'founderVestingAdmin' },
+    { name: 'Employee Vesting', icon: imgVestingAdmin, view: 'employeeVestingAdmin' },
     { name: 'Create Vesting', icon: imgCreateVesting, view: 'createVestingSchedule' }, // Added Create Vesting
     { name: 'Sample Data', icon: imgSampleData, view: 'sampleData' },
 ];

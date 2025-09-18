@@ -3,8 +3,11 @@ import LoyaltyPointAdmin from './components/LoyaltyPointAdmin';
 import LoyaltyPointBasic from './components/LoyaltyPointBasic';
 import SampleDataInput from './components/SampleDataInput';
 import Sidebar from './components/Sidebar';
-import VestingAdmin from './components/VestingAdmin';
 import CreateVestingSchedule from './components/CreateVestingSchedule';
+import MockVestingAdmin from './components/MockVestingAdmin';
+import InvestorVestingAdmin from './components/InvestorVestingAdmin';
+import FounderVestingAdmin from './components/FounderVestingAdmin';
+import EmployeeVestingAdmin from './components/EmployeeVestingAdmin';
 import { menuItems, MenuItem } from './components/Sidebar'; // Import menuItems and MenuItem
 import './App.css';
 
@@ -122,8 +125,17 @@ function App() {
       );
     }
 
-    if (view === 'vestingAdmin') {
-      return <VestingAdmin setView={setView} setActiveItem={setActiveItem} />;
+    if (view === 'mockVestingAdmin') {
+      return <MockVestingAdmin setView={setView} setActiveItem={setActiveItem} />;
+    }
+    if (view === 'investorVestingAdmin') {
+      return <InvestorVestingAdmin setView={setView} setActiveItem={setActiveItem} />;
+    }
+    if (view === 'founderVestingAdmin') {
+      return <FounderVestingAdmin setView={setView} setActiveItem={setActiveItem} />;
+    }
+    if (view === 'employeeVestingAdmin') {
+      return <EmployeeVestingAdmin setView={setView} setActiveItem={setActiveItem} />;
     }
     if (view === 'createVestingSchedule') {
       return <CreateVestingSchedule />;
@@ -143,4 +155,3 @@ function App() {
 }
 
 export default App;
-
