@@ -27,6 +27,14 @@ export default function MockVestingAdmin({ setView, setActiveItem }: VestingAdmi
   const [vestingData, setVestingData] = useState<VestingItem[]>([]);
   const [loading, setLoading] = useState(false);
 
+  console.log('.env variables:', process.env.REACT_APP_RPC_BSC_MAINNET);
+  console.log('.env variables:', process.env.REACT_APP_WSS_RPC_BSC_MAINNET);
+  console.log('.env variables:', process.env.REACT_APP_SAFE_WALLET);
+  console.log('.env variables:', process.env.REACT_APP_SAFE_API_KEY);
+  console.log('.env variables:', process.env.REACT_APP_ADMIN_KEY);
+
+  console.log('.env REACT_APP_MOCK_VESTING_ADDRESS:', process.env.REACT_APP_MOCK_VESTING_ADDRESS);
+
   useEffect(() => {
     const fetchVestingData = async () => {
       if (!(window as any).ethereum) {
