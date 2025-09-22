@@ -9,8 +9,6 @@ import swaggerSpec from './swagger';
 import { generateMerkleTree } from './services/merkleTreeService';
 import { startClaimedEventListener } from './services/eventListenerService';
 
-dotenv.config();
-
 const app = express();
 const port = process.env.PORT || 3000;
 

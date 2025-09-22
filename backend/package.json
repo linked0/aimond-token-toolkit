@@ -2,7 +2,8 @@
   "name": "backend",
   "packageManager": "yarn@4.4.1",
   "scripts": {
-    "start": "nodemon --watch src --ext ts --exec ts-node -r dotenv/config src/index.ts",
+    "start": "nodemon --watch src --ext ts --exec ts-node -r ./src/config.ts src/index.ts",
+    "start:test": "ENV_FILE=.env.bscTestnet nodemon --watch src --ext ts --exec ts-node -r ./src/config.ts src/index.ts",
     "build": "tsc",
     "seed": "ts-node -r dotenv/config scripts/seed.ts",
     "db:create": "ts-node -r dotenv/config scripts/createDbUser.ts",

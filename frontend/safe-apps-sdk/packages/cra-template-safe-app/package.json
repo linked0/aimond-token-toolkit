@@ -1,0 +1,11 @@
+{
+  "name": "@safe-global/cra-template-safe-app",
+  "version": "5.0.0",
+  "description": "Safe App Starter",
+  "author": "Safe (https://safe.global)",
+  "license": "MIT",
+  "main": "template.json",
+  "publishConfig": {
+    "access": "public"
+  }
+}

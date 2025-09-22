@@ -11,4 +11,15 @@ export const chains = {
         blockExplorerUrls: ['https://testnet.bscscan.com']
     },
     // Add other chains here as needed
+    bsc: {
+        chainId: '0x38', // 56 in hexadecimal
+        chainName: 'Binance Smart Chain Mainnet',
+        nativeCurrency: {
+            name: 'Binance Coin',
+            symbol: 'BNB',
+            decimals: 18
+        },
+        rpcUrls: [process.env.REACT_APP_RPC_BSC_MAINNET || ''],
+        blockExplorerUrls: ['https://bscscan.com']
+    }
 };
