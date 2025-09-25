@@ -176,7 +176,7 @@ export default function SampleDataInput({ points, refreshPoints }: SampleDataInp
 
   return (
     <div className="bg-[#fafafb] p-6">
-      <h1 className="text-2xl font-bold mb-4">Sample Data Input</h1>
+      <h1 className="text-2xl font-bold mb-4">Loyalty Point Input</h1>
       
       <div className="mb-4">
         <label className="block text-sm font-medium text-gray-700 mb-1">Wallet Address</label>

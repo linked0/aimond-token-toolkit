@@ -110,8 +110,8 @@ export default function CreateVestingSchedule() {
 
     try {
       const safeClient = await createSafeClient({
-        provider: providerUrl,
-        signer: process.env.REACT_APP_ADMIN_KEY,
+        provider: window.ethereum, // Use window.ethereum directly for signing
+        signer: await signer.getAddress(), // Use the wallet address as signer
         safeAddress: safeAddress,
         apiKey: process.env.REACT_APP_SAFE_API_KEY
       });
@@ -177,72 +177,70 @@ export default function CreateVestingSchedule() {
       <div className="absolute h-[665px] left-[0px] overflow-clip top-[235px] w-[716px]" data-name="Vesting List" data-node-id="2615:135">
         {/* The rest of the JSX remains the same, so it's omitted for brevity */}
       </div>
-      <div className="absolute h-28 left-[0px] overflow-clip top-[123px] w-[775px]" data-name="New Vesting" data-node-id="2615:136">
-        <div className="absolute contents left-[35px] top-[26px]" data-name="Frist Table" data-node-id="2615:142">
-          <div className="absolute bg-white h-[60px] left-[35px] rounded-[10px] shadow-[1px_17px_44px_0px_rgba(3,2,41,0.07)] top-[26px] w-[478px]" data-name="bg" data-node-id="2615:143" />
-          <button
-            className="absolute bg-[#4285f4] h-[27px] left-[553px] opacity-90 rounded-[33px] top-[41px] w-[132px] text-white text-[14px] font-['Nunito:Regular',_sans-serif] flex items-center justify-center"
-            data-name="button"
-            data-node-id="2615:144"
-            onClick={createVesting}
-          >
-            Submit
-          </button>
-          <div className="absolute contents left-[375px] top-11" data-name="Paid Point" data-node-id="2615:149">
-            <input
-              type="number"
-              className="absolute font-['Nunito:Regular',_sans-serif] font-normal leading-[0] left-[375px] text-[#030229] text-[14px] top-11 w-[100px] h-[30px] border border-gray-300 rounded-md p-2"
-              data-node-id="2615:150"
-              value={vestingQuantity}
-              onChange={(e) => setVestingQuantity(e.target.value)}
-              placeholder="1,000,000"
-            />
-          </div>
-          <div className="absolute contents left-[232px] top-[45px]" data-name="Referral" data-node-id="2615:151">
-            <select
-              className="absolute font-['Nunito:Regular',_sans-serif] font-normal leading-[0] left-[232px] text-[#030229] text-[14px] top-[45px] w-[100px] h-[30px] border border-gray-300 rounded-md"
-              data-node-id="2615:152"
-              value={selectedVestingType}
-              onChange={(e) => setSelectedVestingType(e.target.value)}
-            >
-              <option value="Investor">Investor</option>
-              <option value="Founder">Founder</option>
-              <option value="Employee">Employee</option>
-              <option value="Mock">Mock</option>
-            </select>
-          </div>
-          <div className="absolute contents left-[91px] top-12" data-name="Address" data-node-id="2615:153">
-            <input
-              type="text"
-              className="absolute font-['Nunito:Regular',_sans-serif] font-normal leading-[0] left-[91px] text-[#030229] text-[14px] top-12 w-[120px] h-[30px] border border-gray-300 rounded-md p-2"
-              data-node-id="2615:154"
-              value={vestingAddress}
-              onChange={(e) => setVestingAddress(e.target.value)}
-              placeholder="0x..."
-            />
-          </div>
-          <div className="absolute left-[53px] top-[41px]" data-name="Address Image" data-node-id="2615:155">
-            {vestingAddress ? (
-              <Jazzicon address={vestingAddress} size={30} />
-            ) : (
-              <div className="absolute h-[30px] left-[0px] top-[0px] w-[30px] bg-gray-200 rounded-full" />
-            )}
-          </div>
+      {/* New Vesting Form */}
+      <div className="px-6 mb-6">
+        {/* Form Headers */}
+        <div className="flex mb-2 px-2">
+          <div className="w-1/4 pr-8 text-xs text-gray-500 font-medium">Address</div>
+          <div className="w-1/4 px-4 text-xs text-gray-500 font-medium">Vesting Type</div>
+          <div className="w-1/4 px-4 text-xs text-gray-500 font-medium">Vesting Amount</div>
+          <div className="w-1/4 pl-4 text-xs text-gray-500 font-medium">Action</div>
         </div>
-        <div className="absolute contents left-[55px] top-0" data-name="Table heading" data-node-id="2615:158">
-          <div className="absolute contents left-[375px] top-0" data-name="Total Payout" data-node-id="2615:163">
-            <div className="absolute font-['Nunito:Regular',_sans-serif] font-normal h-3 leading-[0] left-[375px] opacity-70 text-[#030229] text-[12px] top-0 w-[137.557px]" data-node-id="2615:164">
-              <p className="leading-[normal]">Vesting Amount</p>
+        
+        {/* Form Inputs */}
+        <div className="bg-white rounded-lg shadow-sm p-4">
+          <div className="flex items-center">
+            {/* Address Input */}
+            <div className="w-1/4 pr-8 flex items-center space-x-3">
+              <div className="w-8 h-8 flex-shrink-0">
+                {vestingAddress ? (
+                  <Jazzicon address={vestingAddress} size={32} />
+                ) : (
+                  <div className="w-8 h-8 bg-gray-200 rounded-full" />
+                )}
+              </div>
+              <input
+                type="text"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                value={vestingAddress}
+                onChange={(e) => setVestingAddress(e.target.value)}
+                placeholder="0x..."
+              />
             </div>
-          </div>
-          <div className="absolute contents left-[232px] top-0" data-name="Total Vesting" data-node-id="2615:165">
-            <div className="absolute font-['Nunito:Regular',_sans-serif] font-normal h-3 leading-[0] left-[232px] opacity-70 text-[#030229] text-[12px] top-0 w-[97px]" data-node-id="2615:166">
-              <p className="leading-[normal]">Vesting Type</p>
+            
+            {/* Vesting Type Select */}
+            <div className="w-1/4 px-4">
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                value={selectedVestingType}
+                onChange={(e) => setSelectedVestingType(e.target.value)}
+              >
+                <option value="Investor">Investor</option>
+                <option value="Founder">Founder</option>
+                <option value="Employee">Employee</option>
+                <option value="Mock">Mock</option>
+              </select>
             </div>
-          </div>
-          <div className="absolute contents left-[91px] top-0" data-name="Address" data-node-id="2615:167">
-            <div className="absolute font-['Nunito:Regular',_sans-serif] font-normal h-3 leading-[0] left-[91px] opacity-70 text-[#030229] text-[12px] top-0 w-[98.009px]" data-node-id="2615:168">
-              <p className="leading-[normal]">Address</p>
+            
+            {/* Vesting Amount Input */}
+            <div className="w-1/4 px-4">
+              <input
+                type="number"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                value={vestingQuantity}
+                onChange={(e) => setVestingQuantity(e.target.value)}
+                placeholder="1,000,000"
+              />
+            </div>
+            
+            {/* Submit Button */}
+            <div className="w-1/4 pl-4">
+              <button
+                className="w-full bg-[#4285f4] hover:bg-[#3367d6] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200"
+                onClick={createVesting}
+              >
+                Submit
+              </button>
             </div>
           </div>
         </div>

@@ -12,13 +12,20 @@ module.exports = function override(config) {
         "https": require.resolve("https-browserify"),
         "os": require.resolve("os-browserify/browser"),
         "url": require.resolve("url/"),
-        "zlib": require.resolve("browserify-zlib")
+        "zlib": require.resolve("browserify-zlib"),
+        "process": require.resolve("process/browser.js")
     });
+    
+    // Add alias for process/browser to handle react-router imports
+    config.resolve.alias = {
+        ...config.resolve.alias,
+        "process/browser": require.resolve("process/browser.js")
+    };
     config.resolve.fallback = fallback;
 
     config.plugins = (config.plugins || []).concat([
         new webpack.ProvidePlugin({
-            process: 'process/browser',
+            process: require.resolve('process/browser.js'),
             Buffer: ['buffer', 'Buffer']
         })
     ]);
