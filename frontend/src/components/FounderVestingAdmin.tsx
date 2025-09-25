@@ -85,11 +85,11 @@ export default function FounderVestingAdmin({ setView, setActiveItem }: VestingA
   }, []);
 
   return (
-    <div className="bg-[#f7f7f8] relative size-full">
+    <div className="relative size-full">
       <div>
         <div className="flex justify-between items-center mb-4 p-6">
           <div className="font-['Nunito:Bold',_sans-serif] font-bold text-[#030229] text-[24px]">
-            <p>Founder Vesting Release List (Vesting Status)</p>
+            <p>Founder Vesting Status</p>
           </div>
           <button onClick={() => { setView('createVestingSchedule'); setActiveItem('Create Vesting'); }} className="bg-[#605bff] h-[42px] w-[231px] rounded-[10px] text-white text-[16px] font-['Nunito:Regular',_sans-serif] flex items-center justify-center transition-all duration-150 active:bg-[#4a47cc]">
             <div className="h-[20px] relative shrink-0 w-[17px]">

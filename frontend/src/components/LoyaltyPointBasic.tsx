@@ -42,7 +42,7 @@ export default function LoyaltyPointBasic({ points }: LoyaltyPointBasicProps) {
   }, []);
 
   return (
-    <div className="bg-[#f7f7f8] relative size-full">
+    <div className="relative size-full">
       
       {/* Main Content Area */}
       <div>

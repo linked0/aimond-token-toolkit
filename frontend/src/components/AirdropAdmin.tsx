@@ -16,11 +16,10 @@ const AirdropAdmin = () => {
   };
 
   return (
-    <div className="bg-[#f7f7f8] relative size-full p-6">
+    <div className="relative size-full p-6">
       <div className="flex justify-between items-center mb-4">
         <div>
           <h1 className="text-2xl font-bold">Loyalty Point</h1>
-          <p className="text-gray-500">Admin: 0xff76...13b1</p>
         </div>
         <div className="flex space-x-4">
           <button className="bg-blue-500 text-white px-4 py-2 rounded-lg">New Airdrop</button>

@@ -1,8 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from 'react-router-dom';
+import Jazzicon from '@metamask/jazzicon';
+import { chains } from '../constants/chains';
 
 const imgImage1 = "/assets/loyalty-card.png";
 const imgLoyaltyPoint = "/assets/loyalty-point.svg";
 const imgVestingAdmin = "/assets/vesting-admin.svg";
+const imgMockVesting = "/assets/document.svg"; // Mock/test environment - represents testing documentation
+const imgInvestorVesting = "/assets/vesting-admin.svg"; // Investment/financial - keeping original
+const imgFounderVesting = "/assets/category.svg"; // Leadership/foundation - represents leadership role
+const imgEmployeeVesting = "/assets/activity.svg"; // Employee activity - represents human activity
 const imgCreateVesting = "/assets/coin.svg";
 const imgSampleData = "/assets/sample-data.svg";
 
@@ -12,30 +19,120 @@ export interface MenuItem {
     view: string;
 }
 
+// Route mapping for navigation
+const routeMap: { [key: string]: string } = {
+    'loyalty': '/loyalty-point',
+    'mockVestingAdmin': '/vesting/mock',
+    'investorVestingAdmin': '/vesting/investor',
+    'founderVestingAdmin': '/vesting/founder',
+    'employeeVestingAdmin': '/vesting/employee',
+    'createVestingSchedule': '/vesting/create',
+    'sampleData': '/sample-data'
+};
+
 export const menuItems: MenuItem[] = [
     { name: 'Loyalty Point', icon: imgLoyaltyPoint, view: 'loyalty' },
-    { name: 'Mock Vesting', icon: imgVestingAdmin, view: 'mockVestingAdmin' },
-    { name: 'Investor Vesting', icon: imgVestingAdmin, view: 'investorVestingAdmin' },
-    { name: 'Founder Vesting', icon: imgVestingAdmin, view: 'founderVestingAdmin' },
-    { name: 'Employee Vesting', icon: imgVestingAdmin, view: 'employeeVestingAdmin' },
-    { name: 'Create Vesting', icon: imgCreateVesting, view: 'createVestingSchedule' }, // Added Create Vesting
-    { name: 'Sample Data', icon: imgSampleData, view: 'sampleData' },
+    { name: 'Investor Vesting', icon: imgInvestorVesting, view: 'investorVestingAdmin' },
+    { name: 'Founder Vesting', icon: imgFounderVesting, view: 'founderVestingAdmin' },
+    { name: 'Employee Vesting', icon: imgEmployeeVesting, view: 'employeeVestingAdmin' },
+    { name: 'Mock Vesting', icon: imgMockVesting, view: 'mockVestingAdmin' },
+    { name: 'Schedule Vesting', icon: imgCreateVesting, view: 'createVestingSchedule' }, // Added Schedule Vesting
+    { name: 'Point Data', icon: imgSampleData, view: 'sampleData' },
 ];
 
 interface SidebarProps {
     activeItem: string;
     setActiveItem: (item: string) => void;
     setView: (view: string) => void;
+    walletAddress: string | null;
+    setWalletAddress: (address: string | null) => void;
 }
 
-export default function Sidebar({ activeItem, setActiveItem, setView }: SidebarProps) {
+export default function Sidebar({ activeItem, setActiveItem, setView, walletAddress, setWalletAddress }: SidebarProps) {
+    const [jazziconElement, setJazziconElement] = useState<HTMLElement | null>(null);
+    const [currentNetwork, setCurrentNetwork] = useState<{ name: string; chainId: string } | null>(null);
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    // Generate Jazzicon when wallet address changes
+    useEffect(() => {
+        if (walletAddress && jazziconElement) {
+            const seed = parseInt(walletAddress.slice(2, 10), 16);
+            const icon = Jazzicon(32, seed);
+            jazziconElement.innerHTML = '';
+            jazziconElement.appendChild(icon);
+        }
+    }, [walletAddress, jazziconElement]);
+
+    // Get current network information
+    useEffect(() => {
+        const getCurrentNetwork = async () => {
+            if (window.ethereum && walletAddress) {
+                try {
+                    const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+                    
+                    // Find network name based on chain ID
+                    let networkName = 'Unknown Network';
+                    if (chainId === chains.bscTestnet.chainId) {
+                        networkName = chains.bscTestnet.chainName;
+                    } else if (chainId === chains.bsc.chainId) {
+                        networkName = chains.bsc.chainName;
+                    }
+                    
+                    setCurrentNetwork({ name: networkName, chainId });
+                } catch (error) {
+                    console.error('Error getting network info:', error);
+                }
+            }
+        };
+
+        getCurrentNetwork();
+
+        // Listen for network changes
+        if (window.ethereum) {
+            window.ethereum.on('chainChanged', getCurrentNetwork);
+            
+            return () => {
+                if (window.ethereum.off) {
+                    window.ethereum.off('chainChanged', getCurrentNetwork);
+                } else if (window.ethereum.removeListener) {
+                    window.ethereum.removeListener('chainChanged', getCurrentNetwork);
+                }
+            };
+        }
+    }, [walletAddress]);
+
+    const handleConnectWallet = async () => {
+        try {
+            if (window.ethereum) {
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                console.log("Wallet connected:", accounts[0]);
+                setWalletAddress(accounts[0]);
+            } else {
+                alert("Please install MetaMask to use this feature!");
+            }
+        } catch (error) {
+            console.error("Error connecting wallet:", error);
+        }
+    };
+
+    const handleDisconnectWallet = () => {
+        setWalletAddress(null);
+        setCurrentNetwork(null);
+    };
+
+
+    const formatAddress = (address: string) => {
+        return `${address.slice(0, 6)}...${address.slice(-4)}`;
+    };
+
     return (
-        <nav className="absolute top-0 left-0 bg-white w-[254px] flex flex-col shadow-lg">
+        <nav className="absolute top-0 left-0 bg-white w-[254px] flex flex-col shadow-lg h-screen">
             <div className="h-[120px] flex items-center justify-center p-4">
                 <img alt="Logo" className="max-h-full" src={imgImage1} />
             </div>
             
-            <ul className="flex flex-col space-y-2 px-4">
+            <ul className="flex flex-col space-y-2 px-4 flex-grow">
                 {menuItems.map((item) => (
                     <li key={item.name}>
                         <a 
@@ -44,6 +141,11 @@ export default function Sidebar({ activeItem, setActiveItem, setView }: SidebarP
                                 e.preventDefault();
                                 setActiveItem(item.name);
                                 setView(item.view);
+                                // Navigate to the route
+                                const route = routeMap[item.view];
+                                if (route) {
+                                    navigate(route);
+                                }
                             }}
                             className={`flex items-center p-3 rounded-lg transition-colors ${
                                 activeItem === item.name
@@ -60,6 +162,51 @@ export default function Sidebar({ activeItem, setActiveItem, setView }: SidebarP
                     </li>
                 ))}
             </ul>
+
+            {/* Wallet Connection Area */}
+            <div className="p-4 border-t border-gray-200">
+                {walletAddress ? (
+                    <div className="space-y-3">
+                        {/* Wallet Info */}
+                        <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                            <div 
+                                ref={setJazziconElement}
+                                className="w-8 h-8 rounded-full"
+                            />
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-900 truncate">
+                                    {formatAddress(walletAddress)}
+                                </p>
+                                <p className="text-xs text-gray-500">Connected</p>
+                            </div>
+                        </div>
+                        
+                        {/* Network Info */}
+                        {currentNetwork && (
+                            <div className="p-3 bg-blue-50 rounded-lg">
+                                <div>
+                                    <p className="text-sm text-blue-800">{currentNetwork.name}</p>
+                                    <p className="text-xs text-blue-600">Chain ID: {currentNetwork.chainId}</p>
+                                </div>
+                            </div>
+                        )}
+                        
+                        <button
+                            onClick={handleDisconnectWallet}
+                            className="w-full px-4 py-2 text-sm font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
+                        >
+                            Disconnect Wallet
+                        </button>
+                    </div>
+                ) : (
+                    <button
+                        onClick={handleConnectWallet}
+                        className="w-full px-4 py-2 text-sm font-medium text-white bg-[#605bff] rounded-lg hover:bg-[#4c47d4] transition-colors"
+                    >
+                        Connect Wallet
+                    </button>
+                )}
+            </div>
         </nav>
     );
 }

@@ -93,7 +93,7 @@ export default function LoyaltyPointAdmin({ points, walletAddress, refreshPoints
     };
 
     return (
-        <div className="bg-[#f7f7f8] relative size-full">
+        <div className="relative size-full">
             
             {/* Main Content Area */}
             <div>
@@ -101,21 +101,6 @@ export default function LoyaltyPointAdmin({ points, walletAddress, refreshPoints
                     <div>
                         <div className="font-['Nunito:Bold',_sans-serif] font-bold text-[#030229] text-[24px]">
                             <p>Loyalty Point List</p>
-                        </div>
-                        <div className="font-['Nunito:Regular',_sans-serif] text-sm text-gray-500 flex items-center">
-                            <p>Admin: {truncateAddress(walletAddress || '')}</p>
-                            {walletAddress && (
-                                <button
-                                    onClick={() => handleCopy(walletAddress)}
-                                    className="ml-2 p-1 rounded-full hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    title="Copy address"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 0h-2M16 7H8" />
-                                    </svg>
-                                </button>
-                            )}
-                            {copiedMessage[walletAddress || ''] && <span className="ml-2 text-xs text-green-500">Copied!</span>}
                         </div>
                     </div>
                     <div className="flex items-center space-x-4">
