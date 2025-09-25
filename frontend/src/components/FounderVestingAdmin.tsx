@@ -74,8 +74,7 @@ export default function FounderVestingAdmin({ setView, setActiveItem }: VestingA
 
         setVestingData(schedules);
       } catch (error) {
-        console.error("Error fetching vesting data:", error);
-        alert("Error fetching vesting data. Check the console for details.");
+        console.error("❌ Error fetching vesting data:", error);
       } finally {
         setLoading(false);
       }

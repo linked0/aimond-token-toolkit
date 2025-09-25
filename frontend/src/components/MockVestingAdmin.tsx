@@ -4,6 +4,7 @@ import { ethers } from 'ethers';
 import { mockVestingAddress, mockVestingABI } from '../constants/contracts';
 import { bsc, bscTestnet } from 'viem/chains';
 import { createSafeClient } from '@safe-global/sdk-starter-kit';
+import Safe from '@safe-global/protocol-kit';
 
 const imgPlus = "/assets/plus.svg";
 
@@ -110,6 +111,8 @@ export default function MockVestingAdmin({ setView, setActiveItem }: VestingAdmi
       return;
     }
 
+    console.log("🎯 ===== handleConfirmTransaction START =====");  
+
     setOngoingTransaction(true);
     try {
       const provider = new ethers.BrowserProvider((window as any).ethereum);
@@ -164,11 +167,137 @@ export default function MockVestingAdmin({ setView, setActiveItem }: VestingAdmi
       });
 
       console.log("Transaction confirmed:", txResponse);
-      alert("Transaction confirmed successfully!");
+      
+      // Check if auto-execution is enabled and if threshold is reached
+      console.log("🔍 Checking auto-execution setting:", process.env.REACT_APP_AUTO_EXECUTE_ENABLED);
+      if (process.env.REACT_APP_AUTO_EXECUTE_ENABLED === 'true') {
+        console.log("⚡ Auto-execution is enabled, checking threshold...");
+        
+        // Poll for state change: wait until confirmation count is updated or timeout
+        // Uses exponential backoff to avoid overwhelming the API while ensuring reliable state detection
+        const maxAttempts = 4; // e.g., up to ~4 seconds total
+        let attempt = 0;
+        let updatedTx = null;
+        let found = false;
+        let delay = 500; // initial delay in ms
+        
+        console.log(`🔄 Starting polling for transaction ${tx.safeTxHash} confirmation threshold...`);
+        
+        while (attempt < maxAttempts) {
+          console.log(`🔄 Polling attempt ${attempt + 1}/${maxAttempts} (delay: ${delay}ms)`);
+          await fetchPendingTransactions();
+          
+          const allTransactions = [...createVestingTransactions, ...releaseToTransactions];
+          updatedTx = allTransactions.find(t => t.safeTxHash === tx.safeTxHash);
+          
+          if (updatedTx && updatedTx.confirmations.length >= updatedTx.confirmationsRequired && !updatedTx.isExecuted) {
+            console.log(`✅ Confirmation threshold reached! Confirmations: ${updatedTx.confirmations.length}/${updatedTx.confirmationsRequired}`);
+            found = true;
+            break;
+          }
+          
+          if (attempt < maxAttempts - 1) { // Don't wait on the last attempt
+            await new Promise(resolve => setTimeout(resolve, delay));
+            delay = Math.min(delay * 2, 4000); // exponential backoff, max 4s
+          }
+          attempt++;
+        }
+        
+        if (found && updatedTx) {
+          console.log(`🚀 Auto-executing transaction ${tx.safeTxHash} after confirmation threshold reached`);
+          await handleExecuteTransaction(updatedTx, true); // true indicates auto-execution
+          alert("Transaction confirmed and executed automatically!");
+        } else {
+          console.warn(`⚠️ Transaction ${tx.safeTxHash} confirmation threshold not reached within timeout period`);
+          alert("Transaction confirmed successfully!");
+        }
+      } else {
+        alert("Transaction confirmed successfully!");
+      }
+      
       fetchPendingTransactions(); // Refresh the list of pending transactions
     } catch (error: any) {
       console.error("Error confirming transaction:", error);
       alert(`Error confirming transaction: ${error.message}`);
+    } finally {
+      setOngoingTransaction(false);
+    }
+  }
+
+  async function handleExecuteTransaction(tx: any, isAutoExecution: boolean = false) {
+    if (!(window as any).ethereum) {
+      console.error("MetaMask is not installed");
+      alert("Please install MetaMask to use this feature.");
+      return;
+    }
+
+    console.log("🎯 ===== handleExecuteTransaction START =====");   
+
+    setOngoingTransaction(true);
+    try {
+      const provider = new ethers.BrowserProvider((window as any).ethereum);
+      const signer = await provider.getSigner();
+      const network = await provider.getNetwork();
+      
+      // Network detection for RPC URL selection
+      console.log(`Network detected: ${network.name} (Chain ID: ${network.chainId})`);
+
+      // Get the RPC URL for the provider
+      let rpcUrl = "";
+      switch (BigInt(network.chainId)) {
+        case BigInt(bsc.id):
+          rpcUrl = process.env.REACT_APP_RPC_BSC_MAINNET || '';
+          break;
+        case BigInt(bscTestnet.id):
+          rpcUrl = process.env.REACT_APP_RPC_BSC_TESTNET || '';
+          break;
+        default:
+          rpcUrl = process.env.REACT_APP_RPC_BSC_MAINNET || '';
+          console.warn('Unsupported network detected, defaulting to BSC Mainnet.');
+      }
+
+      if (!rpcUrl) {
+        throw new Error(`No RPC URL configured for network ${network.name}`);
+      }
+
+      // Use the safe address from environment if tx.safeAddress is not available
+      const safeAddressToUse = tx.safeAddress || process.env.REACT_APP_SAFE_WALLET;
+      
+      if (!safeAddressToUse) {
+        throw new Error("No safe address available. Please check REACT_APP_SAFE_WALLET environment variable.");
+      }
+
+      // Create Safe instance using Core SDK
+      const safe = await Safe.init({
+        provider: window.ethereum,
+        signer: await signer.getAddress(),
+        safeAddress: safeAddressToUse,
+      });
+
+      console.log(`⚡ Executing transaction with safeTxHash: ${tx.safeTxHash}`);
+      
+      // Execute the transaction using Safe Core SDK
+      const txResponse = await safe.executeTransaction(tx.safeTxHash);
+
+      console.log("🎉 Transaction executed:", txResponse);
+      
+      // Refresh data to reflect the executed transaction
+      console.log("🔄 Refreshing pending transactions...");
+      await fetchPendingTransactions();
+      console.log("🔄 Refreshing vesting data...");
+      await fetchVestingData();
+      
+      if (!isAutoExecution) {
+        alert("Transaction executed successfully!");
+      }
+      
+      fetchPendingTransactions(); // Refresh the list of pending transactions
+      fetchVestingData(); // Refresh vesting data
+    } catch (error: any) {
+      console.error("Error executing transaction:", error);
+      if (!isAutoExecution) {
+        alert(`Error executing transaction: ${error.message}`);
+      }
     } finally {
       setOngoingTransaction(false);
     }
@@ -180,6 +309,8 @@ export default function MockVestingAdmin({ setView, setActiveItem }: VestingAdmi
       alert("Please install MetaMask to use this feature.");
       return;
     }
+
+    console.log("🚀 ===== fetchVestingData START =====");
 
     setLoading(true);
     try {
@@ -199,12 +330,17 @@ export default function MockVestingAdmin({ setView, setActiveItem }: VestingAdmi
       const schedules = await Promise.all(beneficiaries.map(async (beneficiary: string, index: number) => {
         const schedule = await contract.vestingSchedules(beneficiary);
         
-        // Use local calculation for all addresses to save gas
-        const currentlyReleasable = getCurrentlyReleasableAmountLocal(
-          schedule,
-          globalStartTime,
-          Date.now() / 1000 // Convert to Unix timestamp
-        );
+        // Check if schedule is fully released to skip unnecessary calculation
+        const isFullyReleased = schedule.totalAmount === schedule.releasedAmount;
+        
+        // Use local calculation only if not fully released to save gas
+        const currentlyReleasable = isFullyReleased 
+          ? 0n // No tokens releasable if fully released
+          : getCurrentlyReleasableAmountLocal(
+              schedule,
+              globalStartTime,
+              Date.now() / 1000 // Convert to Unix timestamp
+            );
 
         let status = "Pending";
         if (schedule.releasedAmount > 0 && schedule.releasedAmount < schedule.totalAmount) {
@@ -218,7 +354,7 @@ export default function MockVestingAdmin({ setView, setActiveItem }: VestingAdmi
         
         // Determine initial release status
         let initialReleaseStatus = "Ready to Release";
-        if (totalPayout > 0 && currentRelease <= 0) {
+        if (isFullyReleased || (totalPayout > 0 && currentRelease <= 0)) {
           initialReleaseStatus = "Fully Released";
         } else if (totalPayout > 0 && currentRelease > 0) {
           initialReleaseStatus = "Partially Released";
@@ -238,7 +374,23 @@ export default function MockVestingAdmin({ setView, setActiveItem }: VestingAdmi
         };
       }));
 
-      setVestingData(schedules);
+      // Sort schedules to prioritize non-fully released items
+      const sortedSchedules = schedules.sort((a, b) => {
+        // Items that are not "Fully Released" come first
+        const aIsFullyReleased = a.releaseStatus === "Fully Released";
+        const bIsFullyReleased = b.releaseStatus === "Fully Released";
+        
+        if (aIsFullyReleased && !bIsFullyReleased) {
+          return 1; // a comes after b
+        } else if (!aIsFullyReleased && bIsFullyReleased) {
+          return -1; // a comes before b
+        } else {
+          // If both have same status, sort by address for consistency
+          return a.address.localeCompare(b.address);
+        }
+      });
+
+      setVestingData(sortedSchedules);
     } catch (error: any) {
       console.error("Error fetching vesting data:", error);
       alert(`Error fetching vesting data. Check the console for details. Error: ${error.message}`);
@@ -253,6 +405,8 @@ export default function MockVestingAdmin({ setView, setActiveItem }: VestingAdmi
       alert('Safe wallet address not found in environment variables.');
       return;
     }
+
+    console.log("🚀 ===== fetchPendingTransactions START =====");
 
     if (!window.ethereum) {
       alert('MetaMask is not installed.');
@@ -420,6 +574,8 @@ export default function MockVestingAdmin({ setView, setActiveItem }: VestingAdmi
       return;
     }
 
+    console.log("✅ ===== handleRelease START =====");
+
     setOngoingTransaction(true);
     try {
       const provider = new ethers.BrowserProvider((window as any).ethereum);
@@ -570,23 +726,36 @@ export default function MockVestingAdmin({ setView, setActiveItem }: VestingAdmi
                         <td className="py-4 px-6">{tx.nonce}</td>
                         <td className="py-4 px-6">{tx.confirmations.length} / {tx.confirmationsRequired}</td>
                         <td className="py-4 px-6">
-                          {canConfirm ? (
-                            <button 
-                              onClick={() => handleConfirmTransaction(tx)}
-                              className="bg-blue-500 text-white px-4 py-2 rounded-lg disabled:bg-gray-400"
-                              disabled={ongoingTransaction}
-                            >
-                              Confirm
-                            </button>
-                          ) : (
-                            <div className="text-sm text-gray-500">
-                              {!currentUserAddress && "No wallet connected"}
-                              {currentUserAddress && hasConfirmed && "Confirmed"}
-                              {currentUserAddress && isInitiator && "You initiated this"}
-                              {currentUserAddress && tx.isExecuted && "Already executed"}
-                              {currentUserAddress && !hasConfirmed && !isInitiator && !tx.isExecuted && "Can confirm"}
-                            </div>
-                          )}
+                          <div className="flex gap-2">
+                            {canConfirm ? (
+                              <button 
+                                onClick={() => handleConfirmTransaction(tx)}
+                                className="bg-blue-500 text-white px-3 py-1 rounded-lg disabled:bg-gray-400 text-sm"
+                                disabled={ongoingTransaction}
+                              >
+                                Confirm
+                              </button>
+                            ) : (
+                              <div className="text-sm text-gray-500">
+                                {!currentUserAddress && "No wallet connected"}
+                                {currentUserAddress && hasConfirmed && "Confirmed"}
+                                {currentUserAddress && isInitiator && "You initiated this"}
+                                {currentUserAddress && tx.isExecuted && "Already executed"}
+                                {currentUserAddress && !hasConfirmed && !isInitiator && !tx.isExecuted && "Can confirm"}
+                              </div>
+                            )}
+                            
+                            {/* Execute button - only show if transaction has enough confirmations and is not executed */}
+                            {tx.confirmations.length >= tx.confirmationsRequired && !tx.isExecuted && (
+                              <button 
+                                onClick={() => handleExecuteTransaction(tx, false)}
+                                className="bg-green-500 text-white px-3 py-1 rounded-lg disabled:bg-gray-400 text-sm"
+                                disabled={ongoingTransaction}
+                              >
+                                Execute
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     )
@@ -650,20 +819,35 @@ export default function MockVestingAdmin({ setView, setActiveItem }: VestingAdmi
                             );
                           }
                           
-                          return canConfirm ? (
-                            <button 
-                              onClick={() => handleConfirmTransaction(tx)}
-                              className="bg-blue-500 text-white px-4 py-2 rounded-lg disabled:bg-gray-400"
-                              disabled={ongoingTransaction}
-                            >
-                              Confirm Release
-                            </button>
-                          ) : (
-                            <div className="text-sm text-gray-500">
-                              {!currentUserAddress && "No wallet connected"}
-                              {currentUserAddress && isInitiator && "You initiated this"}
-                              {currentUserAddress && tx.isExecuted && "Already executed"}
-                              {currentUserAddress && !hasConfirmed && !isInitiator && !tx.isExecuted && "Can confirm"}
+                          return (
+                            <div className="flex gap-2">
+                              {canConfirm ? (
+                                <button 
+                                  onClick={() => handleConfirmTransaction(tx)}
+                                  className="bg-blue-500 text-white px-3 py-1 rounded-lg disabled:bg-gray-400 text-sm"
+                                  disabled={ongoingTransaction}
+                                >
+                                  Confirm Release
+                                </button>
+                              ) : (
+                                <div className="text-sm text-gray-500">
+                                  {!currentUserAddress && "No wallet connected"}
+                                  {currentUserAddress && isInitiator && "You initiated this"}
+                                  {currentUserAddress && tx.isExecuted && "Already executed"}
+                                  {currentUserAddress && !hasConfirmed && !isInitiator && !tx.isExecuted && "Can confirm"}
+                                </div>
+                              )}
+                              
+                              {/* Execute button for release transactions */}
+                              {tx.confirmations.length >= tx.confirmationsRequired && !tx.isExecuted && (
+                                <button 
+                                  onClick={() => handleExecuteTransaction(tx, false)}
+                                  className="bg-green-500 text-white px-3 py-1 rounded-lg disabled:bg-gray-400 text-sm"
+                                  disabled={ongoingTransaction}
+                                >
+                                  Execute Release
+                                </button>
+                              )}
                             </div>
                           );
                         })()
