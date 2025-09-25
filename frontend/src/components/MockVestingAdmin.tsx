@@ -4,6 +4,8 @@ import { ethers } from 'ethers';
 import { mockVestingAddress, mockVestingABI } from '../constants/contracts';
 import { bsc, bscTestnet } from 'viem/chains';
 import { createSafeClient } from '@safe-global/sdk-starter-kit';
+import { useSafeAutoExecution } from '../hooks/useSafeAutoExecution';
+import AutoExecutionConfig from './AutoExecutionConfig';
 
 const imgPlus = "/assets/plus.svg";
 
@@ -86,6 +88,21 @@ export default function MockVestingAdmin({ setView, setActiveItem }: VestingAdmi
   const [createVestingTransactions, setCreateVestingTransactions] = useState<any[]>([]);
   const [releaseToTransactions, setReleaseToTransactions] = useState<any[]>([]);
   const [currentUserAddress, setCurrentUserAddress] = useState<string | null>(null);
+  
+  // Auto-execution configuration
+  const [autoExecutionEnabled, setAutoExecutionEnabled] = useState(false);
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [autoExecutionConfig, setAutoExecutionConfig] = useState({
+    enabled: false,
+    pollingInterval: 10000, // 10 seconds
+    maxGasPrice: '50', // 50 gwei
+    allowedDestinations: [mockVestingAddress.toLowerCase()], // Only allow vesting contract
+    maxValue: '0', // 0 ETH max value
+    requireSimulation: true,
+  });
+
+  // Note: Safe wallet automatically executes transactions when threshold is reached
+  // No additional auto-execution code needed
 
   async function fetchCurrentUserAddress() {
     if (!(window as any).ethereum) {
@@ -328,6 +345,22 @@ export default function MockVestingAdmin({ setView, setActiveItem }: VestingAdmi
     fetchCurrentUserAddress();
   }, []);
 
+  // Update auto-execution config when enabled state changes
+  useEffect(() => {
+    setAutoExecutionConfig(prev => ({
+      ...prev,
+      enabled: autoExecutionEnabled,
+    }));
+  }, [autoExecutionEnabled]);
+
+  // Refresh data when auto-execution executes a transaction
+  useEffect(() => {
+    if (autoExecution.executedCount > 0) {
+      fetchPendingTransactions();
+      fetchVestingData();
+    }
+  }, [autoExecution.executedCount]);
+
   // Update release status when pending transactions change
   useEffect(() => {
     if (vestingData.length > 0) {
@@ -505,23 +538,94 @@ export default function MockVestingAdmin({ setView, setActiveItem }: VestingAdmi
           <div className="font-['Nunito:Bold',_sans-serif] font-bold text-[#030229] text-[24px]">
             <p>Mock Vesting Status</p>
           </div>
-          <button 
-            onClick={() => { setView('createVestingSchedule'); setActiveItem('Create Vesting'); }}
-            className="bg-[#605bff] h-[42px] w-[231px] rounded-[10px] text-white text-[16px] font-['Nunito:Regular',_sans-serif] flex items-center justify-center transition-all duration-150 active:bg-[#4a47cc] disabled:bg-gray-400"
-            disabled={ongoingTransaction}
-          >
-            {ongoingTransaction ? (
-              <p>Processing...</p>
-            ) : (
-              <>
-                <div className="h-[20px] relative shrink-0 w-[17px]">
-                  <img alt="" className="block max-w-none size-full" src={imgPlus} />
-                </div>
-                <p className="leading-[normal] ml-2">New Vesting Schedule</p>
-              </>
-            )}
-          </button>
+          <div className="flex items-center gap-4">
+            {/* Auto-execution controls */}
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={autoExecutionEnabled}
+                  onChange={(e) => setAutoExecutionEnabled(e.target.checked)}
+                  className="rounded"
+                />
+                <span className="text-gray-700">Auto-execute</span>
+              </label>
+              <button
+                onClick={() => setShowConfigModal(true)}
+                className="text-xs text-blue-600 hover:text-blue-800 underline"
+              >
+                Configure
+              </button>
+              <button
+                onClick={() => autoExecution.checkAndExecuteTransactions()}
+                className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
+                disabled={ongoingTransaction}
+              >
+                Execute Now
+              </button>
+            </div>
+            
+            <button 
+              onClick={() => { setView('createVestingSchedule'); setActiveItem('Create Vesting'); }}
+              className="bg-[#605bff] h-[42px] w-[231px] rounded-[10px] text-white text-[16px] font-['Nunito:Regular',_sans-serif] flex items-center justify-center transition-all duration-150 active:bg-[#4a47cc] disabled:bg-gray-400"
+              disabled={ongoingTransaction}
+            >
+              {ongoingTransaction ? (
+                <p>Processing...</p>
+              ) : (
+                <>
+                  <div className="h-[20px] relative shrink-0 w-[17px]">
+                    <img alt="" className="block max-w-none size-full" src={imgPlus} />
+                  </div>
+                  <p className="leading-[normal] ml-2">New Vesting Schedule</p>
+                </>
+              )}
+            </button>
+          </div>
         </div>
+
+        {/* Auto-execution status panel */}
+        {autoExecutionEnabled && (
+          <div className="mx-6 mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-lg font-semibold text-blue-800">Auto-Execution Status</h3>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                <span className="text-sm text-gray-600">Ready</span>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+              <div>
+                <span className="text-gray-600">Executed:</span>
+                <span className="ml-2 font-semibold text-green-600">{autoExecution.executedCount}</span>
+              </div>
+              <div>
+                <span className="text-gray-600">Errors:</span>
+                <span className="ml-2 font-semibold text-red-600">{autoExecution.errorCount}</span>
+              </div>
+              <div>
+                <span className="text-gray-600">Last Check:</span>
+                <span className="ml-2 font-semibold text-gray-800">
+                  {autoExecution.lastChecked ? new Date(autoExecution.lastChecked).toLocaleTimeString() : 'Never'}
+                </span>
+              </div>
+            </div>
+            
+            {autoExecution.lastError && (
+              <div className="mt-2 p-2 bg-red-100 border border-red-200 rounded text-sm text-red-700">
+                <strong>Last Error:</strong> {autoExecution.lastError}
+              </div>
+            )}
+            
+            <div className="mt-2 text-xs text-gray-600">
+              <strong>Mode:</strong> On-demand execution (no polling) | 
+              <strong> Safety:</strong> Max Gas: {autoExecutionConfig.maxGasPrice} gwei, 
+              Max Value: {autoExecutionConfig.maxValue} ETH, 
+              Allowed Destinations: {autoExecutionConfig.allowedDestinations.length} contract(s)
+            </div>
+          </div>
+        )}
 
         <div className="mx-6">
           <h2 className="text-xl font-bold mb-4">Vesting Schedules Awaiting Confirmation</h2>
@@ -693,6 +797,15 @@ export default function MockVestingAdmin({ setView, setActiveItem }: VestingAdmi
         </div>
 
       </div>
+
+      {/* Auto-execution configuration modal */}
+      {showConfigModal && (
+        <AutoExecutionConfig
+          config={autoExecutionConfig}
+          onConfigChange={setAutoExecutionConfig}
+          onClose={() => setShowConfigModal(false)}
+        />
+      )}
     </div>
   );
 }
