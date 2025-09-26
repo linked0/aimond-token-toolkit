@@ -107,6 +107,32 @@ export default function VestingAdmin({
   const [releaseToTransactions, setReleaseToTransactions] = useState<any[]>(cachedData?.releaseToTransactions || []);
   const [currentUserAddress, setCurrentUserAddress] = useState<string | null>(null);
   const [refreshingPending, setRefreshingPending] = useState(false);
+  const [clickedAddress, setClickedAddress] = useState<string | null>(null);
+  const [copiedMessage, setCopiedMessage] = useState<string | null>(null);
+  const [clickedCandidateAddress, setClickedCandidateAddress] = useState<string | null>(null);
+  const [copiedCandidateMessage, setCopiedCandidateMessage] = useState<string | null>(null);
+
+  // Function to copy address to clipboard
+  const handleCopyAddress = async (address: string) => {
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopiedMessage(address);
+      setTimeout(() => setCopiedMessage(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy address: ', err);
+    }
+  };
+
+  // Function to copy candidate address to clipboard
+  const handleCopyCandidateAddress = async (address: string) => {
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopiedCandidateMessage(address);
+      setTimeout(() => setCopiedCandidateMessage(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy candidate address: ', err);
+    }
+  };
 
   // Function to update cache
   const updateCache = (vestingData: VestingItem[], createVestingTxs: any[], releaseToTxs: any[]) => {
@@ -339,25 +365,24 @@ export default function VestingAdmin({
     }
 
     // If we have cached data and it's not stale, don't fetch again
-    if (!isCacheStale() && vestingData.length > 0) {
-      console.log(`📋 Using cached vesting data for ${title} vesting (${contractAddress})`);
-      return;
-    }
+    // Always fetch fresh data when called (no cache staleness check)
 
-    console.log("🚀 ===== fetchVestingData START =====");
+      console.log("🚀 ===== fetchVestingData START =====");
 
     setLoading(true);
     try {
       const provider = new ethers.BrowserProvider((window as any).ethereum);
       const contract = new ethers.Contract(contractAddress, contractABI, provider);
 
-      console.log("Fetching vesting data for Mock Vesting...");
+      console.log("Fetching vesting data for", title, "at contract:", contractAddress);
 
       // Get all beneficiaries from VestingScheduleCreated events
       const events = await contract.queryFilter(contract.filters.VestingScheduleCreated());
+      console.log("Raw events:", events);
       const beneficiaries = [...new Set(events.map((event: any) => event.args.beneficiary))];
 
       console.log("Found beneficiaries:", beneficiaries);
+      console.log("Number of beneficiaries:", beneficiaries.length);
 
       // Get global start time
       const globalStartTime = await contract.globalStartTime();
@@ -413,10 +438,15 @@ export default function VestingAdmin({
         return b.totalVesting - a.totalVesting;
       });
 
+      console.log("Final sorted schedules:", sortedSchedules);
+      console.log("Setting vesting data with", sortedSchedules.length, "items");
+      
       setVestingData(sortedSchedules);
       
       // Update cache with new data
       updateCache(sortedSchedules, createVestingTransactions, releaseToTransactions);
+      
+      console.log("✅ fetchVestingData completed successfully");
       
     } catch (error: any) {
       console.error("Error fetching vesting data:", error);
@@ -547,12 +577,16 @@ export default function VestingAdmin({
   useEffect(() => {
     fetchCurrentUserAddress();
     
-    // Only show loading if we don't have cached data
-    if (!cachedData || isCacheStale()) {
+    // Always use cached data if available, regardless of staleness
+    if (cachedData && cachedData.vestingData.length > 0) {
+      console.log(`📋 Using cached data for ${title} vesting (${contractAddress})`);
+      setVestingData(cachedData.vestingData);
+      setCreateVestingTransactions(cachedData.createVestingTransactions);
+      setReleaseToTransactions(cachedData.releaseToTransactions);
+    } else {
+      // Only fetch if no cached data exists
       fetchVestingData();
       fetchPendingTransactions();
-    } else {
-      console.log(`📋 Using cached data for ${title} vesting (${contractAddress})`);
     }
   }, [contractAddress, contractABI]);
 
@@ -564,6 +598,16 @@ export default function VestingAdmin({
 
     return () => clearInterval(interval);
   }, [contractAddress]);
+
+  // Set up scheduler for automatic vesting data refresh (every 5 minutes)
+  useEffect(() => {
+    const scheduler = setInterval(() => {
+      console.log(`🔄 Scheduled refresh for ${title} vesting data`);
+      fetchVestingData();
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => clearInterval(scheduler);
+  }, [contractAddress, contractABI, title]);
 
   useEffect(() => {
     // Update release status for each vesting item based on pending transactions
@@ -606,32 +650,67 @@ export default function VestingAdmin({
 
   function getBeneficiary(tx: any) {
     try {
+      // First try to get from decoded parameters
       if (tx.dataDecoded?.parameters) {
         const beneficiaryParam = tx.dataDecoded.parameters.find((p: any) => p.name === 'beneficiary');
-        if (beneficiaryParam) {
-          return truncateAddress(beneficiaryParam.value);
+        if (beneficiaryParam && beneficiaryParam.value) {
+          return beneficiaryParam.value;
         }
       }
+      
+      // Try alternative parameter names
+      if (tx.dataDecoded?.parameters) {
+        const addressParam = tx.dataDecoded.parameters.find((p: any) => 
+          p.name === 'address' || p.name === 'to' || p.name === 'recipient'
+        );
+        if (addressParam && addressParam.value) {
+          return addressParam.value;
+        }
+      }
+      
+      // Try to extract from raw transaction data if available
+      if (tx.to && tx.to !== '0x0000000000000000000000000000000000000000') {
+        return tx.to;
+      }
+      
       // If we can't decode, try to extract from raw data
       if (tx.data && tx.data.length > 10) {
         return "Contract transaction";
       }
-      return "Unknown beneficiary";
+      
+      return "Unknown address";
     } catch (error) {
-      return "Error parsing beneficiary";
+      console.error("Error parsing beneficiary address:", error);
+      return "Error parsing address";
     }
   }
 
   function getBeneficiaryAddress(tx: any): string | null {
     try {
+      // First try to get from decoded parameters
       if (tx.dataDecoded?.parameters) {
         const beneficiaryParam = tx.dataDecoded.parameters.find((p: any) => p.name === 'beneficiary');
-        if (beneficiaryParam) {
+        if (beneficiaryParam && beneficiaryParam.value) {
           return beneficiaryParam.value;
         }
+        
+        // Try alternative parameter names
+        const addressParam = tx.dataDecoded.parameters.find((p: any) => 
+          p.name === 'address' || p.name === 'to' || p.name === 'recipient'
+        );
+        if (addressParam && addressParam.value) {
+          return addressParam.value;
+        }
       }
+      
+      // Try to extract from raw transaction data if available
+      if (tx.to && tx.to !== '0x0000000000000000000000000000000000000000') {
+        return tx.to;
+      }
+      
       return null;
     } catch (error) {
+      console.error("Error parsing beneficiary address:", error);
       return null;
     }
   }
@@ -721,21 +800,15 @@ export default function VestingAdmin({
           <div className="font-['Nunito:Bold',_sans-serif] font-bold text-[#030229] text-[24px]">
             <p>{title} Vesting Status</p>
           </div>
-          <button onClick={() => { setView('createVestingSchedule'); setActiveItem('Create Vesting'); }} className="bg-[#605bff] h-[42px] w-[231px] rounded-[10px] text-white text-[16px] font-['Nunito:Regular',_sans-serif] flex items-center justify-center transition-all duration-150 active:bg-[#4c47d4]">
-            <div className="h-[20px] relative shrink-0 w-[17px]">
-              <img alt="" className="block max-w-none size-full" src={imgPlus} />
-            </div>
-            <p className="leading-[normal] ml-2">New Vesting Schedule</p>
-          </button>
         </div>
 
         {/* Pending Transactions Section */}
         <div className="mx-6 mb-8">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold">Vesting Candidates</h2>
-            <button 
+            <button
               onClick={fetchPendingTransactions}
-              className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors text-sm disabled:bg-gray-400"
+              className="bg-[#605bff] text-white px-4 py-2 rounded-lg hover:bg-[#4a47cc] transition-colors text-sm disabled:bg-gray-400"
               disabled={ongoingTransaction || refreshingPending}
             >
               {refreshingPending ? "🔄 Refreshing..." : "🔄 Refresh"}
@@ -743,15 +816,35 @@ export default function VestingAdmin({
           </div>
           <div className="relative overflow-x-auto shadow-md sm:rounded-lg">
             <table className="w-full text-sm text-left rtl:text-right text-gray-500">
-              <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+              <thead className="font-['Nunito:Bold',_sans-serif] font-bold text-[#030229] bg-gray-50">
                 <tr>
                   <th scope="col" className="py-3 px-6"></th>
-                  <th scope="col" className="py-3 px-6">Beneficiary</th>
-                  <th scope="col" className="py-3 px-6">Amount</th>
-                  <th scope="col" className="py-3 px-6">SafeTxHash</th>
-                  <th scope="col" className="py-3 px-6">Nonce</th>
-                  <th scope="col" className="py-3 px-6">Confirmations</th>
-                  <th scope="col" className="py-3 px-6">Actions</th>
+                  <th scope="col" className="py-3 px-6 text-left">
+                    <div>
+                      <div>Address</div>
+                    </div>
+                  </th>
+                  <th scope="col" className="py-3 px-6 text-left">
+                    <div>Vesting Amount</div>
+                  </th>
+                  <th scope="col" className="py-3 px-6 text-left">
+                    <div>Safe TxHash</div>
+                  </th>
+                  <th scope="col" className="py-3 px-6 text-left">
+                    <div>
+                      <div>Nonce</div>
+                    </div>
+                  </th>
+                  <th scope="col" className="py-3 px-6 text-left">
+                    <div>
+                      <div>Confirmations</div>
+                    </div>
+                  </th>
+                  <th scope="col" className="py-3 px-6 text-left">
+                    <div>
+                      <div>Actions</div>
+                    </div>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -778,7 +871,29 @@ export default function VestingAdmin({
                         <td className="py-4 px-6">
                           {beneficiaryAddress && <Jazzicon address={beneficiaryAddress} size={32} />}
                         </td>
-                        <td className="py-4 px-6 font-medium text-gray-900 whitespace-nowrap">{getBeneficiary(tx)}</td>
+                        <td className="py-4 px-6 font-medium text-gray-900 whitespace-nowrap">
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => setClickedCandidateAddress(clickedCandidateAddress === getBeneficiary(tx) ? null : getBeneficiary(tx))}
+                              className="text-blue-600 hover:text-blue-800 underline cursor-pointer"
+                              title="Click to show full address"
+                            >
+                              {clickedCandidateAddress === getBeneficiary(tx) ? getBeneficiary(tx) : truncateAddress(getBeneficiary(tx))}
+                            </button>
+                            <button
+                              onClick={() => handleCopyCandidateAddress(getBeneficiary(tx))}
+                              className="p-1 rounded-full hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              title="Copy address"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                              </svg>
+                            </button>
+                            {copiedCandidateMessage === getBeneficiary(tx) && (
+                              <span className="text-xs text-green-500">Copied!</span>
+                            )}
+                          </div>
+                        </td>
                         <td className="py-4 px-6">{getVestingAmount(tx)}</td>
                         <td className="py-4 px-6">
                           {truncateAddress(tx.safeTxHash)}
@@ -837,15 +952,31 @@ export default function VestingAdmin({
           </div>
           <div className="relative overflow-x-auto shadow-md sm:rounded-lg">
           <table className="w-full text-sm text-left rtl:text-right text-gray-500">
-            <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+            <thead className="font-['Nunito:Bold',_sans-serif] font-bold text-[#030229] bg-gray-50">
               <tr>
                 <th scope="col" className="py-3 px-6"></th>
-                <th scope="col" className="py-3 px-6">Address</th>
-                <th scope="col" className="py-3 px-6">Total Vesting</th>
-                <th scope="col" className="py-3 px-6">Total Payout</th>
-                <th scope="col" className="py-3 px-6">Current Release</th>
-                <th scope="col" className="py-3 px-6">Release Status</th>
-                <th scope="col" className="py-3 px-6">Action</th>
+                <th scope="col" className="py-3 px-6 text-left">
+                  <div>
+                    <div>Address</div>
+                  </div>
+                </th>
+                <th scope="col" className="py-3 px-6 text-left">
+                  <div>Total Vesting</div>
+                </th>
+                <th scope="col" className="py-3 px-6 text-left">
+                  <div>Total Payout</div>
+                </th>
+                <th scope="col" className="py-3 px-6 text-left">
+                  <div>Current Release</div>
+                </th>
+                <th scope="col" className="py-3 px-6 text-left">
+                  <div>Release Status</div>
+                </th>
+                <th scope="col" className="py-3 px-6 text-left">
+                  <div>
+                    <div>Action</div>
+                  </div>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -856,7 +987,27 @@ export default function VestingAdmin({
                   <tr key={index} className="bg-white border-b hover:bg-gray-50">
                     <td className="py-4 px-6"><Jazzicon address={vesting.address} size={32} /></td>
                     <td className="py-4 px-6 font-medium text-gray-900 whitespace-nowrap">
-                      {truncateAddress(vesting.address)}
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => setClickedAddress(clickedAddress === vesting.address ? null : vesting.address)}
+                          className="text-blue-600 hover:text-blue-800 underline cursor-pointer"
+                          title="Click to show full address"
+                        >
+                          {clickedAddress === vesting.address ? vesting.address : truncateAddress(vesting.address)}
+                        </button>
+                        <button
+                          onClick={() => handleCopyAddress(vesting.address)}
+                          className="p-1 rounded-full hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          title="Copy address"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                        </button>
+                        {copiedMessage === vesting.address && (
+                          <span className="text-xs text-green-500">Copied!</span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-4 px-6">{vesting.totalVesting}</td>
                     <td className="py-4 px-6">{vesting.totalPayout}</td>
