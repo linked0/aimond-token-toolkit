@@ -4,14 +4,14 @@ import Jazzicon from '@metamask/jazzicon';
 import { chains } from '../constants/chains';
 
 const imgImage1 = "/assets/loyalty-card.png";
-const imgLoyaltyPoint = "/assets/loyalty-point.svg";
-const imgVestingAdmin = "/assets/vesting-admin.svg";
-const imgMockVesting = "/assets/document.svg"; // Mock/test environment - represents testing documentation
-const imgInvestorVesting = "/assets/vesting-admin.svg"; // Investment/financial - keeping original
-const imgFounderVesting = "/assets/category.svg"; // Leadership/foundation - represents leadership role
-const imgEmployeeVesting = "/assets/activity.svg"; // Employee activity - represents human activity
-const imgCreateVesting = "/assets/coin.svg";
-const imgSampleData = "/assets/sample-data.svg";
+const imgLoyaltyPoint = "/assets/plus.svg"; // Simple plus icon for loyalty points
+const imgVestingAdmin = "/assets/plus.svg"; // Simple plus icon for admin
+const imgMockVesting = "/assets/plus.svg"; // Simple plus icon for mock
+const imgInvestorVesting = "/assets/plus.svg"; // Simple plus icon for investor
+const imgFounderVesting = "/assets/plus.svg"; // Simple plus icon for founder
+const imgEmployeeVesting = "/assets/plus.svg"; // Simple plus icon for employee
+const imgCreateVesting = "/assets/plus.svg"; // Simple plus icon for create
+const imgSampleData = "/assets/plus.svg"; // Simple plus icon for sample data
 
 export interface MenuItem {
     name: string;
@@ -37,7 +37,7 @@ export const menuItems: MenuItem[] = [
     { name: 'Employee Vesting', icon: imgEmployeeVesting, view: 'employeeVestingAdmin' },
     { name: 'Mock Vesting', icon: imgMockVesting, view: 'mockVestingAdmin' },
     { name: 'New Vesting', icon: imgCreateVesting, view: 'createVestingSchedule' }, // Added New Vesting
-    { name: 'Point Data', icon: imgSampleData, view: 'sampleData' },
+    { name: 'Airdrop / New Point', icon: imgSampleData, view: 'sampleData' },
 ];
 
 interface SidebarProps {
@@ -156,7 +156,43 @@ export default function Sidebar({ activeItem, setActiveItem, setView, walletAddr
                             {activeItem === item.name && (
                                 <div className="absolute left-0 bg-gradient-to-r from-[#aca9ff] h-12 opacity-20 rounded-r-[5px] to-[#aca9ff00] to-[91.25%] w-[62px]" />
                             )}
-                            <img src={item.icon} alt={`${item.name} icon`} className="w-5 h-5 mr-4" />
+                            <div className="w-6 h-6 mr-4 flex items-center justify-center">
+                                {item.name === 'Loyalty Point' && (
+                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center ${activeItem === item.name ? 'bg-red-500' : 'bg-red-400'}`}>
+                                        <span className="text-white text-sm font-bold">★</span>
+                                    </div>
+                                )}
+                                {item.name === 'Investor Vesting' && (
+                                    <div className={`w-5 h-5 rounded flex items-center justify-center ${activeItem === item.name ? 'bg-red-500' : 'bg-red-400'}`}>
+                                        <span className="text-white text-sm font-bold">$</span>
+                                    </div>
+                                )}
+                                {item.name === 'Founder Vesting' && (
+                                    <div className={`w-5 h-5 rounded flex items-center justify-center ${activeItem === item.name ? 'bg-red-500' : 'bg-red-400'}`}>
+                                        <span className="text-white text-sm font-bold">👑</span>
+                                    </div>
+                                )}
+                                {item.name === 'Employee Vesting' && (
+                                    <div className={`w-5 h-5 rounded flex items-center justify-center ${activeItem === item.name ? 'bg-red-500' : 'bg-red-400'}`}>
+                                        <span className="text-white text-sm font-bold">👤</span>
+                                    </div>
+                                )}
+                                {item.name === 'Mock Vesting' && (
+                                    <div className={`w-5 h-5 rounded flex items-center justify-center ${activeItem === item.name ? 'bg-red-500' : 'bg-red-400'}`}>
+                                        <span className="text-white text-sm font-bold">🧪</span>
+                                    </div>
+                                )}
+                                {item.name === 'New Vesting' && (
+                                    <div className={`w-5 h-5 rounded flex items-center justify-center ${activeItem === item.name ? 'bg-red-500' : 'bg-red-400'}`}>
+                                        <span className="text-white text-sm font-bold">+</span>
+                                    </div>
+                                )}
+                                {item.name === 'Airdrop / New Point' && (
+                                    <div className={`w-5 h-5 rounded flex items-center justify-center ${activeItem === item.name ? 'bg-red-500' : 'bg-red-400'}`}>
+                                        <span className="text-white text-sm font-bold">📊</span>
+                                    </div>
+                                )}
+                            </div>
                             <span className="text-base">{item.name}</span>
                         </a>
                     </li>

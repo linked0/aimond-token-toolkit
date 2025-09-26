@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import LoyaltyPointAdmin from './components/LoyaltyPointAdmin';
 import LoyaltyPointBasic from './components/LoyaltyPointBasic';
 import SampleDataInput from './components/SampleDataInput';
@@ -51,12 +51,24 @@ const viewMap: { [key: string]: string } = {
   '/sample-data': 'sampleData'
 };
 
-function App() {
+// Component that can use useLocation hook
+function AppContent() {
   const [points, setPoints] = useState<Point[]>([]);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [view, setView] = useState('loyalty');
   const [activeItem, setActiveItem] = useState('Loyalty Point');
+  const location = useLocation();
   console.log("walletAddress: ", walletAddress);
+
+  // Sync activeItem with current URL path
+  useEffect(() => {
+    const currentView = viewMap[location.pathname] || 'loyalty';
+    const currentMenuItem = menuItems.find(item => item.view === currentView);
+    if (currentMenuItem && activeItem !== currentMenuItem.name) {
+      setActiveItem(currentMenuItem.name);
+      setView(currentView);
+    }
+  }, [location.pathname, activeItem]);
 
   useEffect(() => {
     const currentMenuItem = menuItems.find(item => item.view === view);
@@ -181,68 +193,74 @@ function App() {
   };
 
   return (
-    <Router>
-      <div className="App flex">
-        <Sidebar 
-          activeItem={activeItem} 
-          setActiveItem={setActiveItem} 
-          setView={handleNavigation}
-          walletAddress={walletAddress}
-          setWalletAddress={setWalletAddress}
-        />
-        <div className="flex-grow bg-[#f7f7f8] min-h-screen" style={{ marginLeft: '254px' }}>
-          <Routes>
-            {/* Default route - redirect to loyalty point */}
-            <Route path="/" element={<Navigate to="/loyalty-point" replace />} />
-            
-            {/* Loyalty Point Routes */}
-            <Route 
-              path="/loyalty-point" 
-              element={
-                walletAddress ? (
-                  <LoyaltyPointAdmin walletAddress={walletAddress} points={points} refreshPoints={refreshPoints} />
-                ) : (
-                  <div>
-                    <button onClick={handleConnectWallet}>Connect Wallet</button>
-                    <LoyaltyPointBasic points={points} />
-                  </div>
-                )
-              } 
-            />
-            
-            {/* Vesting Routes */}
-            <Route 
-              path="/vesting/mock" 
-              element={<MockVestingAdmin setView={handleNavigation} setActiveItem={setActiveItem} />} 
-            />
-            <Route 
-              path="/vesting/investor" 
-              element={<InvestorVestingAdmin setView={handleNavigation} setActiveItem={setActiveItem} />} 
-            />
-            <Route 
-              path="/vesting/founder" 
-              element={<FounderVestingAdmin setView={handleNavigation} setActiveItem={setActiveItem} />} 
-            />
-            <Route 
-              path="/vesting/employee" 
-              element={<EmployeeVestingAdmin setView={handleNavigation} setActiveItem={setActiveItem} />} 
-            />
-            <Route 
-              path="/vesting/create" 
-              element={<CreateVestingSchedule />} 
-            />
-            
-            {/* Point Data Route */}
-            <Route 
-              path="/sample-data" 
-              element={<SampleDataInput points={points} refreshPoints={refreshPoints} />} 
-            />
-            
-            {/* Catch all route */}
-            <Route path="*" element={<Navigate to="/loyalty-point" replace />} />
-          </Routes>
-        </div>
+    <div className="App flex">
+      <Sidebar 
+        activeItem={activeItem} 
+        setActiveItem={setActiveItem} 
+        setView={handleNavigation}
+        walletAddress={walletAddress}
+        setWalletAddress={setWalletAddress}
+      />
+      <div className="flex-grow bg-[#f7f7f8] min-h-screen" style={{ marginLeft: '254px' }}>
+        <Routes>
+          {/* Default route - redirect to loyalty point */}
+          <Route path="/" element={<Navigate to="/loyalty-point" replace />} />
+          
+          {/* Loyalty Point Routes */}
+          <Route 
+            path="/loyalty-point" 
+            element={
+              walletAddress ? (
+                <LoyaltyPointAdmin walletAddress={walletAddress} points={points} refreshPoints={refreshPoints} />
+              ) : (
+                <div>
+                  <button onClick={handleConnectWallet}>Connect Wallet</button>
+                  <LoyaltyPointBasic points={points} />
+                </div>
+              )
+            } 
+          />
+          
+          {/* Vesting Routes */}
+          <Route 
+            path="/vesting/mock" 
+            element={<MockVestingAdmin setView={handleNavigation} setActiveItem={setActiveItem} />} 
+          />
+          <Route 
+            path="/vesting/investor" 
+            element={<InvestorVestingAdmin setView={handleNavigation} setActiveItem={setActiveItem} />} 
+          />
+          <Route 
+            path="/vesting/founder" 
+            element={<FounderVestingAdmin setView={handleNavigation} setActiveItem={setActiveItem} />} 
+          />
+          <Route 
+            path="/vesting/employee" 
+            element={<EmployeeVestingAdmin setView={handleNavigation} setActiveItem={setActiveItem} />} 
+          />
+          <Route 
+            path="/vesting/create" 
+            element={<CreateVestingSchedule />} 
+          />
+          
+          {/* Airdrop / New Point Route */}
+          <Route 
+            path="/sample-data" 
+            element={<SampleDataInput points={points} refreshPoints={refreshPoints} />} 
+          />
+          
+          {/* Catch all route */}
+          <Route path="*" element={<Navigate to="/loyalty-point" replace />} />
+        </Routes>
       </div>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <AppContent />
     </Router>
   );
 }
