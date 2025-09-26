@@ -5,7 +5,7 @@ export const connectWallet = async (setWalletAddress: (address: string | null) =
     // Check if MetaMask is installed
     if (typeof window.ethereum === 'undefined') {
         console.error("MetaMask is not installed!");
-        alert("Please install MetaMask to use this feature.");
+        // MetaMask not installed - user can install it themselves
         return;
     }
 
@@ -56,12 +56,12 @@ export const connectWallet = async (setWalletAddress: (address: string | null) =
                         });
                     } catch (addError) {
                         console.error("Error adding BSC Testnet:", addError);
-                        alert("Failed to add BSC Testnet. Please add it manually.");
+                        // Failed to add BSC Testnet - user can add it manually
                         return;
                     }
                 } else {
                     console.error("Error switching to BSC Testnet:", switchError);
-                    alert("Failed to switch to BSC Testnet.");
+                    // Failed to switch to BSC Testnet - user can switch manually
                     return;
                 }
             }

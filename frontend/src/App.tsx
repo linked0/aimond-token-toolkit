@@ -111,6 +111,46 @@ function App() {
     refreshPoints();
   }, []);
 
+  // Listen for wallet account changes to reload the page when wallet is newly connected
+  useEffect(() => {
+    if (window.ethereum) {
+      const handleAccountsChanged = (accounts: string[]) => {
+        console.log("Accounts changed:", accounts);
+        
+        if (accounts.length > 0) {
+          // Wallet is connected
+          const newAddress = accounts[0];
+          if (walletAddress !== newAddress) {
+            console.log("Wallet newly connected or changed:", newAddress);
+            setWalletAddress(newAddress);
+            // Reload the current page by refreshing the component
+            window.location.reload();
+          }
+        } else {
+          // Wallet is disconnected
+          if (walletAddress !== null) {
+            console.log("Wallet disconnected");
+            setWalletAddress(null);
+            // Reload the current page when wallet is disconnected
+            window.location.reload();
+          }
+        }
+      };
+
+      // Add event listener for account changes
+      window.ethereum.on('accountsChanged', handleAccountsChanged);
+
+      // Cleanup function to remove event listener
+      return () => {
+        if (window.ethereum.off) {
+          window.ethereum.off('accountsChanged', handleAccountsChanged);
+        } else if (window.ethereum.removeListener) {
+          window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+        }
+      };
+    }
+  }, [walletAddress]);
+
   useEffect(() => {
     if (view === 'loyalty') {
       refreshPoints();
@@ -125,7 +165,7 @@ function App() {
         console.log("Wallet connected:", accounts[0]);
         setWalletAddress(accounts[0]);
       } else {
-        alert("Please install MetaMask to use this feature!");
+        // MetaMask not installed - user can install it themselves
       }
     } catch (error) {
       console.error("Error connecting wallet:", error);

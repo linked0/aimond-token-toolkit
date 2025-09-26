@@ -36,7 +36,7 @@ export const menuItems: MenuItem[] = [
     { name: 'Founder Vesting', icon: imgFounderVesting, view: 'founderVestingAdmin' },
     { name: 'Employee Vesting', icon: imgEmployeeVesting, view: 'employeeVestingAdmin' },
     { name: 'Mock Vesting', icon: imgMockVesting, view: 'mockVestingAdmin' },
-    { name: 'Schedule Vesting', icon: imgCreateVesting, view: 'createVestingSchedule' }, // Added Schedule Vesting
+    { name: 'New Vesting', icon: imgCreateVesting, view: 'createVestingSchedule' }, // Added New Vesting
     { name: 'Point Data', icon: imgSampleData, view: 'sampleData' },
 ];
 
@@ -109,7 +109,7 @@ export default function Sidebar({ activeItem, setActiveItem, setView, walletAddr
                 console.log("Wallet connected:", accounts[0]);
                 setWalletAddress(accounts[0]);
             } else {
-                alert("Please install MetaMask to use this feature!");
+                // MetaMask not installed - user can install it themselves
             }
         } catch (error) {
             console.error("Error connecting wallet:", error);
