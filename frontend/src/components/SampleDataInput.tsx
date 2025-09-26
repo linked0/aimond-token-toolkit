@@ -187,7 +187,7 @@ export default function SampleDataInput({ points, refreshPoints }: SampleDataInp
         <label className="block text-sm font-medium text-gray-700 mb-1">Spending Amount (USD)</label>
         <div className="flex items-center space-x-2">
           <InputField placeholder="Enter spending amount" value={spendingAmount} onChange={(e) => setSpendingAmount(e.target.value)} />
-          <button onClick={handleAddLoyaltyPoint} className="bg-[#605bff] text-white px-4 py-2 rounded-lg whitespace-nowrap">Add Spending Reward</button>
+          <button onClick={handleAddLoyaltyPoint} className="bg-[#605bff] text-white py-2 rounded-lg whitespace-nowrap justify-center" style={{width: '200px', minWidth: '200px', maxWidth: '200px', paddingLeft: '16px', paddingRight: '16px'}}>Add Spending Reward</button>
         </div>
       </div>
 
@@ -195,7 +195,7 @@ export default function SampleDataInput({ points, refreshPoints }: SampleDataInp
         <label className="block text-sm font-medium text-gray-700 mb-1">Referrer Wallet Address</label>
         <div className="flex items-center space-x-2">
           <InputField placeholder="Enter referrer wallet address" value={referrerAddress} onChange={(e) => setReferrerAddress(e.target.value)} />
-          <button onClick={handleAddReferral} className="bg-[#605bff] text-white px-4 py-2 rounded-lg whitespace-nowrap w-48 justify-center">Add Referral</button>
+          <button onClick={handleAddReferral} className="bg-[#605bff] text-white py-2 rounded-lg whitespace-nowrap justify-center" style={{width: '200px', minWidth: '200px', maxWidth: '200px', paddingLeft: '16px', paddingRight: '16px'}}>Add Referral</button>
         </div>
       </div>
 
@@ -203,7 +203,7 @@ export default function SampleDataInput({ points, refreshPoints }: SampleDataInp
         <label className="block text-sm font-medium text-gray-700 mb-1">Airdrop Amount (AMD)</label>
         <div className="flex items-center space-x-2">
           <InputField placeholder="Enter airdrop amount" value={airdropAmount} onChange={(e) => setAirdropAmount(e.target.value)} />
-          <button onClick={handleAddAirdrop} className="bg-[#605bff] text-white px-4 py-2 rounded-lg whitespace-nowrap w-48 justify-center">Add Airdrop</button>
+          <button onClick={handleAddAirdrop} className="bg-[#605bff] text-white py-2 rounded-lg whitespace-nowrap justify-center" style={{width: '200px', minWidth: '200px', maxWidth: '200px', paddingLeft: '16px', paddingRight: '16px'}}>Add Airdrop</button>
         </div>
       </div>
 

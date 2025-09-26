@@ -104,7 +104,7 @@ export default function LoyaltyPointAdmin({ points, walletAddress, refreshPoints
                         </div>
                     </div>
                     <div className="flex items-center space-x-4">
-                        <button className="bg-[#605bff] h-[42px] w-[150px] rounded-[10px] text-white text-[16px] font-['Nunito:Regular',_sans-serif] flex items-center justify-center transition-all duration-150 active:bg-[#4a47cc]">
+                        <button className="bg-[#605bff] h-[42px] w-[180px] rounded-[10px] text-white text-[16px] font-['Nunito:Regular',_sans-serif] flex items-center justify-center transition-all duration-150 active:bg-[#4a47cc]">
                             <img src={imgPlus} alt="New Airdrop" className="w-5 h-5 mr-2" />
                             New Airdrop
                         </button>
