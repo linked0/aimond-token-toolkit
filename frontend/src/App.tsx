@@ -243,7 +243,7 @@ function AppContent() {
             element={<CreateVestingSchedule />} 
           />
           
-          {/* Airdrop / New Point Route */}
+            {/* New Airdrop/Point Route */}
           <Route 
             path="/sample-data" 
             element={<SampleDataInput points={points} refreshPoints={refreshPoints} />} 

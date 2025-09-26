@@ -177,10 +177,10 @@ export default function CreateVestingSchedule() {
       <div className="px-6 mb-6">
         {/* Form Headers */}
         <div className="flex mb-2 px-2">
-          <div className="w-1/4 pr-8 text-xs text-gray-500 font-medium">Address</div>
-          <div className="w-1/4 px-4 text-xs text-gray-500 font-medium">Vesting Type</div>
-          <div className="w-1/4 px-4 text-xs text-gray-500 font-medium">Vesting Amount</div>
-          <div className="w-1/4 pl-4 text-xs text-gray-500 font-medium">Action</div>
+          <div className="w-1/4 pr-8 font-['Nunito:Bold',_sans-serif] font-bold text-[#030229] text-sm">Address</div>
+          <div className="w-1/4 px-4 font-['Nunito:Bold',_sans-serif] font-bold text-[#030229] text-sm">Vesting Type</div>
+          <div className="w-1/4 px-4 font-['Nunito:Bold',_sans-serif] font-bold text-[#030229] text-sm">Vesting Amount</div>
+          <div className="w-1/4 pl-4 font-['Nunito:Bold',_sans-serif] font-bold text-[#030229] text-sm">Action</div>
         </div>
         
         {/* Form Inputs */}

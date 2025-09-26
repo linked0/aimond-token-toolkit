@@ -37,7 +37,7 @@ export const menuItems: MenuItem[] = [
     { name: 'Employee Vesting', icon: imgEmployeeVesting, view: 'employeeVestingAdmin' },
     { name: 'Mock Vesting', icon: imgMockVesting, view: 'mockVestingAdmin' },
     { name: 'New Vesting', icon: imgCreateVesting, view: 'createVestingSchedule' }, // Added New Vesting
-    { name: 'Airdrop / New Point', icon: imgSampleData, view: 'sampleData' },
+    { name: 'New Airdrop/Point', icon: imgSampleData, view: 'sampleData' },
 ];
 
 interface SidebarProps {
@@ -149,51 +149,53 @@ export default function Sidebar({ activeItem, setActiveItem, setView, walletAddr
                             }}
                             className={`flex items-center p-3 rounded-lg transition-colors ${
                                 activeItem === item.name
-                                ? 'text-[#605bff] font-semibold bg-gray-100' 
-                                : 'text-[#030229] opacity-50 font-semibold hover:bg-gray-100'
+                                ? 'text-[#030229] font-semibold bg-gradient-to-r from-[#e3f2fd] to-[#bbdefb]' 
+                                : 'text-[#030229] opacity-80 font-semibold hover:bg-gray-100 hover:opacity-100'
                             }`}
                         >
                             {activeItem === item.name && (
-                                <div className="absolute left-0 bg-gradient-to-r from-[#aca9ff] h-12 opacity-20 rounded-r-[5px] to-[#aca9ff00] to-[91.25%] w-[62px]" />
+                                <div className="absolute left-0 bg-gradient-to-r from-[#4285f4] h-12 opacity-30 rounded-r-[5px] to-[#4285f400] to-[91.25%] w-[62px]" />
                             )}
                             <div className="w-6 h-6 mr-4 flex items-center justify-center">
                                 {item.name === 'Loyalty Point' && (
-                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center ${activeItem === item.name ? 'bg-red-500' : 'bg-red-400'}`}>
+                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center ${activeItem === item.name ? 'bg-red-500' : 'bg-red-500'}`}>
                                         <span className="text-white text-sm font-bold">★</span>
                                     </div>
                                 )}
                                 {item.name === 'Investor Vesting' && (
-                                    <div className={`w-5 h-5 rounded flex items-center justify-center ${activeItem === item.name ? 'bg-red-500' : 'bg-red-400'}`}>
-                                        <span className="text-white text-sm font-bold">$</span>
+                                    <div className={`w-5 h-5 rounded flex items-center justify-center ${activeItem === item.name ? 'bg-red-500' : 'bg-red-500'}`}>
+                                        <span className="text-yellow-400 text-sm font-bold">$</span>
                                     </div>
                                 )}
                                 {item.name === 'Founder Vesting' && (
-                                    <div className={`w-5 h-5 rounded flex items-center justify-center ${activeItem === item.name ? 'bg-red-500' : 'bg-red-400'}`}>
-                                        <span className="text-white text-sm font-bold">👑</span>
+                                    <div className={`w-5 h-5 rounded flex items-center justify-center ${activeItem === item.name ? 'bg-red-500' : 'bg-red-500'}`}>
+                                        <span className="text-white text-sm font-bold">💎</span>
                                     </div>
                                 )}
                                 {item.name === 'Employee Vesting' && (
-                                    <div className={`w-5 h-5 rounded flex items-center justify-center ${activeItem === item.name ? 'bg-red-500' : 'bg-red-400'}`}>
-                                        <span className="text-white text-sm font-bold">👤</span>
+                                    <div className={`w-5 h-5 rounded flex items-center justify-center ${activeItem === item.name ? 'bg-red-500' : 'bg-red-500'}`}>
+                                        <span className="text-white text-sm font-bold">👨‍💼</span>
                                     </div>
                                 )}
                                 {item.name === 'Mock Vesting' && (
-                                    <div className={`w-5 h-5 rounded flex items-center justify-center ${activeItem === item.name ? 'bg-red-500' : 'bg-red-400'}`}>
-                                        <span className="text-white text-sm font-bold">🧪</span>
+                                    <div className={`w-5 h-5 rounded flex items-center justify-center ${activeItem === item.name ? 'bg-red-500' : 'bg-red-500'}`}>
+                                        <span className="text-white text-sm font-bold">⚗️</span>
                                     </div>
                                 )}
                                 {item.name === 'New Vesting' && (
-                                    <div className={`w-5 h-5 rounded flex items-center justify-center ${activeItem === item.name ? 'bg-red-500' : 'bg-red-400'}`}>
-                                        <span className="text-white text-sm font-bold">+</span>
+                                    <div className={`w-5 h-5 rounded flex items-center justify-center ${activeItem === item.name ? 'bg-red-500' : 'bg-red-500'}`}>
+                                        <span className="text-white text-sm font-bold -mt-0.5">+</span>
                                     </div>
                                 )}
-                                {item.name === 'Airdrop / New Point' && (
-                                    <div className={`w-5 h-5 rounded flex items-center justify-center ${activeItem === item.name ? 'bg-red-500' : 'bg-red-400'}`}>
+                                {item.name === 'New Airdrop/Point' && (
+                                    <div className={`w-5 h-5 rounded flex items-center justify-center ${activeItem === item.name ? 'bg-red-500' : 'bg-red-500'}`}>
                                         <span className="text-white text-sm font-bold">📊</span>
                                     </div>
                                 )}
                             </div>
-                            <span className="text-base">{item.name}</span>
+                            <span className="font-['Nunito:Bold',_sans-serif] font-bold text-[#030229] text-base">
+                                {item.name}
+                            </span>
                         </a>
                     </li>
                 ))}
@@ -204,7 +206,7 @@ export default function Sidebar({ activeItem, setActiveItem, setView, walletAddr
                 {walletAddress ? (
                     <div className="space-y-3">
                         {/* Wallet Info */}
-                        <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg">
                             <div 
                                 ref={setJazziconElement}
                                 className="w-8 h-8 rounded-full"
