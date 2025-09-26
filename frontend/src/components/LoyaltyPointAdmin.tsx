@@ -60,7 +60,7 @@ export default function LoyaltyPointAdmin({ points, walletAddress, refreshPoints
 
     const handleReleaseBatch = async () => {
         if (selectedPoints.length === 0) {
-            alert("Please select at least one user to release the batch.");
+            alert("Please select users to release");
             return;
         }
 
@@ -83,12 +83,12 @@ export default function LoyaltyPointAdmin({ points, walletAddress, refreshPoints
             result.results.forEach((item: any) => {
                 console.log(`  Address: ${item.address}, Success: ${item.success}, TxHash: ${item.txHash || 'N/A'}, Error: ${item.error || 'N/A'}`);
             });
-            alert("Batch release process finished. Check console for details.");
+            alert("Batch release completed");
             refreshPoints();
 
         } catch (error: any) {
             console.error("An error occurred during the batch release process:", error);
-            alert(`An error occurred: ${error.message}`);
+            alert(`Release failed: ${error.message}`);
         }
     };
 

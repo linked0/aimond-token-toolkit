@@ -55,23 +55,23 @@ export default function CreateVestingSchedule() {
   const createVesting = async () => {
     const contractDetails = getVestingContractDetails(selectedVestingType);
     if (!contractDetails) {
-      alert('Invalid vesting type selected.');
+      // Invalid vesting type selected
       return;
     }
 
     if (!vestingAddress || !vestingQuantity) {
-      alert('Please enter both recipient address and vesting quantity.');
+      // Please enter both recipient address and vesting quantity
       return;
     }
 
     const safeAddress = process.env.REACT_APP_SAFE_WALLET;
     if (!safeAddress) {
-      alert('Safe wallet address not found in environment variables.');
+      // Safe wallet address not configured - check environment variables
       return;
     }
 
     if (!window.ethereum) {
-      alert('MetaMask is not installed.');
+      // MetaMask not installed - user can install it themselves
       return;
     }
 
@@ -138,11 +138,11 @@ export default function CreateVestingSchedule() {
         data: contract.interface.encodeFunctionData('createVesting', [beneficiary, totalAmount]),
       };
 
-      alert(`Proposing transaction to Safe wallet ${safeAddress} to create ${contractName} vesting schedule...`);
+      alert(`Creating ${contractName} vesting schedule...`);
 
       const txResult = await safeClient.send({ transactions: [safeTransactionData] });
 
-      alert(`Transaction proposed successfully to your Safe wallet! SafeTxHash: ${txResult.transactions?.safeTxHash}\nPlease go to your Safe app to approve and execute the transaction.`);
+      alert(`Transaction created successfully. SafeTxHash: ${txResult.transactions?.safeTxHash}`);
 
       const filter = eventContract.filters.VestingScheduleCreated(vestingAddress);
       eventContract.on(filter, (beneficiary, totalVestingDuration, cliffDuration, releaseDuration, installmentCount, totalAmount, event) => {
@@ -158,11 +158,7 @@ export default function CreateVestingSchedule() {
 
     } catch (error: any) {
       console.error('Error proposing Safe transaction:', error);
-      let errorMessage = `Failed to propose transaction for ${contractName} Vesting Schedule.`;
-      if (error.message) {
-        errorMessage += `\nError: ${error.message}`;
-      }
-      alert(`${errorMessage}\nSee console for more details.`);
+      alert(`Transaction failed: ${error.message}`);
     }
   };
 
