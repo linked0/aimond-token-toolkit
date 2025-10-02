@@ -107,7 +107,7 @@ export default function LoyaltyPointAdmin({ points, walletAddress, refreshPoints
                     <div className="flex items-center space-x-4">
                         <button onClick={handleReleaseBatch} className="bg-[#605bff] h-[42px] w-[180px] rounded-[10px] text-white text-[16px] font-['Nunito:Regular',_sans-serif] flex items-center justify-center transition-all duration-150 active:bg-[#4a47cc]">
                             <img src={imgBatch} alt="Release Batch" className="w-5 h-5 mr-2" />
-                            Release Batch
+                            Release
                         </button>
                     </div>
                 </div>
@@ -132,7 +132,7 @@ export default function LoyaltyPointAdmin({ points, walletAddress, refreshPoints
                                     <div>Referral Amount</div>
                                 </th>
                                 <th scope="col" className="py-3 px-6 text-left">
-                                    <div>Paid Point Amount</div>
+                                    <div>Point Rewards</div>
                                 </th>
                                 <th scope="col" className="py-3 px-6 text-left">
                                     <div>Airdrop Amount</div>
@@ -148,7 +148,23 @@ export default function LoyaltyPointAdmin({ points, walletAddress, refreshPoints
                             </tr>
                         </thead>
                         <tbody>
-                            {points.map((point, index) => (
+                            {points
+                                .sort((a, b) => {
+                                    // Calculate total non-zero data for each row
+                                    const aTotalData = a.referralAmount + a.paidPointAmount + a.paidMemberAmount + a.airdropAmount + a.totalClaimedAmount;
+                                    const bTotalData = b.referralAmount + b.paidPointAmount + b.paidMemberAmount + b.airdropAmount + b.totalClaimedAmount;
+                                    
+                                    // Sort by total data: non-zero data first, then by status
+                                    if (aTotalData > 0 && bTotalData === 0) return -1;
+                                    if (aTotalData === 0 && bTotalData > 0) return 1;
+                                    
+                                    // If both have data or both have no data, sort by status: "Unclaimed" first
+                                    if (a.status === "Unclaimed" && b.status !== "Unclaimed") return -1;
+                                    if (a.status !== "Unclaimed" && b.status === "Unclaimed") return 1;
+                                    
+                                    return 0;
+                                })
+                                .map((point, index) => (
                                 <tr key={index} className="bg-white border-b hover:bg-gray-50">
                                     <td className="w-4 p-4">
                                         <div className="flex items-center">

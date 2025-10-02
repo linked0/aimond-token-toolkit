@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import LoyaltyPointAdmin from './components/LoyaltyPointAdmin';
 import LoyaltyPointBasic from './components/LoyaltyPointBasic';
-import SampleDataInput from './components/SampleDataInput';
+import NewPointAirdrop from './components/NewPointAirdrop';
 import Sidebar from './components/Sidebar';
 import CreateVestingSchedule from './components/CreateVestingSchedule';
 import MockVestingAdmin from './components/MockVestingAdmin';
@@ -123,6 +123,7 @@ function AppContent() {
     refreshPoints();
   }, []);
 
+
   // Listen for wallet account changes to reload the page when wallet is newly connected
   useEffect(() => {
     if (window.ethereum) {
@@ -168,6 +169,40 @@ function AppContent() {
       refreshPoints();
     }
   }, [view]);
+
+  // SSE connection for claimed events
+  useEffect(() => {
+    const eventSource = new EventSource('/api/events/claimed');
+    
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        
+        if (data.type === 'claimed') {
+          console.log('🎉 Claimed event received:', data);
+          
+          // Only refresh if we're on the loyalty point page
+          if (view === 'loyalty') {
+            console.log('🔄 Refreshing loyalty point data due to claimed event');
+            refreshPoints();
+          }
+        } else if (data.type === 'connected') {
+          console.log('✅ Connected to claimed events stream');
+        }
+      } catch (error) {
+        console.error('Error parsing SSE event:', error);
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      console.error('SSE connection error:', error);
+    };
+
+    // Cleanup on component unmount
+    return () => {
+      eventSource.close();
+    };
+  }, [view, refreshPoints]);
 
   const handleConnectWallet = async () => {
     try {
@@ -246,7 +281,7 @@ function AppContent() {
             {/* New Airdrop/Point Route */}
           <Route 
             path="/sample-data" 
-            element={<SampleDataInput points={points} refreshPoints={refreshPoints} />} 
+            element={<NewPointAirdrop points={points} refreshPoints={refreshPoints} />} 
           />
           
           {/* Catch all route */}

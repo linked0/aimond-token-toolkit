@@ -10,7 +10,7 @@ interface Point {
   totalClaimedAmount: number; // Added
 }
 
-interface SampleDataInputProps {
+interface NewPointAirdropProps {
   points: Point[];
   refreshPoints: () => void;
 }
@@ -94,7 +94,7 @@ const InputField: React.FC<{ placeholder: string, value: string, onChange: (e: R
   );
 };
 
-export default function SampleDataInput({ points, refreshPoints }: SampleDataInputProps) {
+export default function NewPointAirdrop({ points, refreshPoints }: NewPointAirdropProps) {
   const [address, setAddress] = useState(''); // This will be the referred user's address
   const [spendingAmount, setSpendingAmount] = useState(''); // Renamed from usedDollars
   const [referrerAddress, setReferrerAddress] = useState('');

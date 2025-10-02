@@ -594,7 +594,7 @@ router.post('/release-batch', async (req, res) => {
         const wallet = await ethers.Wallet.fromEncryptedJson(keystoreJson, password);
         console.log('[Backend] Wallet loaded successfully.');
         
-        const provider = new ethers.JsonRpcProvider(chains.bscTestnet.rpcUrls[0]);
+        const provider = new ethers.JsonRpcProvider(chains.bsc.rpcUrls[0]);
         const connectedWallet = wallet.connect(provider);
         const loyaltyPointContract = new ethers.Contract(loyaltyPointAddress, loyaltyPointABI, connectedWallet) as unknown as LoyaltyPointContract;
 

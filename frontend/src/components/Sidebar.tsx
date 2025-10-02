@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import Jazzicon from '@metamask/jazzicon';
 import { chains } from '../constants/chains';
 
-const imgImage1 = "/assets/loyalty-card.png";
+const imgImage1 = "/assets/loyalty-card.svg";
 const imgLoyaltyPoint = "/assets/plus.svg"; // Simple plus icon for loyalty points
 const imgVestingAdmin = "/assets/plus.svg"; // Simple plus icon for admin
 const imgMockVesting = "/assets/plus.svg"; // Simple plus icon for mock

@@ -23,7 +23,7 @@ const AirdropAdmin = () => {
         </div>
         <div className="flex space-x-4">
           <button className="bg-blue-500 text-white px-4 py-2 rounded-lg">New Airdrop</button>
-          <button className="bg-blue-500 text-white px-4 py-2 rounded-lg">Release Batch</button>
+          <button className="bg-blue-500 text-white px-4 py-2 rounded-lg">Release</button>
         </div>
       </div>
 
@@ -39,7 +39,7 @@ const AirdropAdmin = () => {
               </th>
               <th scope="col" className="py-3 px-6">Address</th>
               <th scope="col" className="py-3 px-6">Referral</th>
-              <th scope="col" className="py-3 px-6">Paid Point</th>
+              <th scope="col" className="py-3 px-6">Point Rewards</th>
               <th scope="col" className="py-3 px-6">Airdrop</th>
               <th scope="col" className="py-3 px-6">Total Claimed</th>
               <th scope="col" className="py-3 px-6">Status</th>

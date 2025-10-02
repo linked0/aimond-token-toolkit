@@ -74,7 +74,8 @@ export async function generateMerkleTree() {
 
     console.log('[MerkleTreeService] Updating Merkle root on smart contract...');
     const keystorePath = './keystore/keystore-loyalty-point-admin.json';
-    const rpcUrl = process.env.RPC_URL || chains.bscTestnet.rpcUrls[0];
+    const rpcUrl = process.env.RPC_URL || chains.bsc.rpcUrls[0];
+    console.log(`process.env.RPC_URL: ${process.env.RPC_URL}`);
     const provider = new ethers.JsonRpcProvider(rpcUrl);
     const readOnlyLoyaltyPointContract = new ethers.Contract(loyaltyPointAddress, loyaltyPointABI, provider);
 
@@ -100,6 +101,7 @@ export async function generateMerkleTree() {
         const connectedWallet = wallet.connect(provider);
         const loyaltyPointContract = new ethers.Contract(loyaltyPointAddress, loyaltyPointABI, connectedWallet);
 
+        console.log(`[MerkleTreeService] LoyaltyPointAddress: ${loyaltyPointAddress}`);
         console.log('[MerkleTreeService] Attempting to send updateRoot transaction...');
         const tx = await (loyaltyPointContract as any).updateRoot(merkleRoot);
         console.log(`[MerkleTreeService] Merkle root update transaction sent. Tx hash: ${tx.hash}`);
@@ -141,6 +143,7 @@ export async function generateMerkleTree() {
     }
 
     
+
 
     return { message: 'Merkle tree generated and proofs stored successfully.', merkleRoot };
   } catch (error: unknown) {
