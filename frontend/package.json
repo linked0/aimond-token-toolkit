@@ -37,6 +37,8 @@
   "scripts": {
     "start": "react-app-rewired start",
     "start:test": "env-cmd -f .env.bscTestnet react-app-rewired start",
+    "start:debug": "cross-env REACT_APP_LOG_LEVEL=3 react-app-rewired start",
+    "start:test:debug": "cross-env REACT_APP_LOG_LEVEL=3 env-cmd -f .env.bscTestnet react-app-rewired start",
     "build": "react-app-rewired build",
     "test": "react-app-rewired test",
     "eject": "react-scripts eject"

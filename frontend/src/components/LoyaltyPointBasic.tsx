@@ -81,14 +81,21 @@ export default function LoyaltyPointBasic({ points }: LoyaltyPointBasicProps) {
                 <th scope="col" className="py-3 px-6"></th>
                 <th scope="col" className="py-3 px-6">Address</th>
                 <th scope="col" className="py-3 px-6">Referral</th>
-                <th scope="col" className="py-3 px-6">Paid Point</th>
+                <th scope="col" className="py-3 px-6">Point Rewards</th>
                 <th scope="col" className="py-3 px-6">Airdrop</th>
                 <th scope="col" className="py-3 px-6">Total Claimed</th>
                 <th scope="col" className="py-3 px-6">Status</th>
               </tr>
             </thead>
             <tbody>
-              {points.map((point, index) => (
+              {points
+                  .sort((a, b) => {
+                      // Sort by status: "Unclaimed" first, then others
+                      if (a.status === "Unclaimed" && b.status !== "Unclaimed") return -1;
+                      if (a.status !== "Unclaimed" && b.status === "Unclaimed") return 1;
+                      return 0;
+                  })
+                  .map((point, index) => (
                 <tr key={index} className="bg-white border-b hover:bg-gray-50">
                   <td className="py-4 px-6"><Jazzicon address={point.address} size={32} /></td>
                   <td className="py-4 px-6 font-medium text-gray-900 whitespace-nowrap flex items-center">

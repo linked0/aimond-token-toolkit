@@ -4,8 +4,63 @@ import { ethers } from 'ethers';
 import { bsc, bscTestnet } from 'viem/chains';
 import { createSafeClient } from '@safe-global/sdk-starter-kit';
 import Safe from '@safe-global/protocol-kit';
+import { createLogger } from '../utils/logger';
 
 const imgPlus = "/assets/plus.svg";
+
+// Create component-specific logger
+const logger = createLogger('VestingAdmin');
+
+// Constants
+const ETHEREUM_ADDRESS_LENGTH = 42;
+
+// Helper function to generate Safe transaction URL with caching
+const getSafeTransactionUrl = (safeTxHash: string, safeAddress?: string, isExecuted?: boolean, contractAddr?: string): string => {
+  const safeAddr = safeAddress || process.env.REACT_APP_SAFE_WALLET;
+  if (!safeAddr) return '#';
+  
+  // Check cache first if contract address is provided
+  if (contractAddr) {
+    const cachedData = vestingDataCache.get(contractAddr);
+    if (cachedData?.safeTxHashCache) {
+      const cached = cachedData.safeTxHashCache.get(safeTxHash);
+      const now = Date.now();
+      
+      // Use cached data if it's less than 5 minutes old
+      if (cached && (now - cached.lastUpdated) < 5 * 60 * 1000) {
+        return cached.url;
+      }
+    }
+  }
+  
+  // Generate URL based on transaction status
+  const baseUrl = isExecuted 
+    ? 'https://app.safe.global/transactions/history'
+    : 'https://app.safe.global/transactions/queue';
+  
+  const url = `${baseUrl}?safe=${safeAddr}&id=${safeTxHash}`;
+  
+  // Cache the URL if contract address is provided
+  if (contractAddr) {
+    const cachedData = vestingDataCache.get(contractAddr);
+    if (cachedData?.safeTxHashCache) {
+      cachedData.safeTxHashCache.set(safeTxHash, {
+        url,
+        isExecuted: isExecuted || false,
+        lastUpdated: Date.now()
+      });
+    }
+  }
+  
+  return url;
+};
+
+// Helper function to format Safe TxHash with contracted display
+const formatSafeTxHash = (safeTxHash: string, showFull: boolean = false): string => {
+  if (!safeTxHash) return '-';
+  if (showFull) return safeTxHash;
+  return `${safeTxHash.slice(0, 6)}...${safeTxHash.slice(-4)}`;
+};
 
 interface VestingItem {
   address: string;
@@ -15,6 +70,10 @@ interface VestingItem {
   status: string;
   releaseStatus: string;
   pendingReleaseTx?: any;
+  confirmations?: any[];
+  confirmationsRequired?: number;
+  isExecuted?: boolean;
+  origin?: string;
 }
 
 interface VestingAdminProps {
@@ -86,6 +145,7 @@ const vestingDataCache = new Map<string, {
   vestingData: VestingItem[];
   createVestingTransactions: any[];
   releaseToTransactions: any[];
+  safeTxHashCache: Map<string, { url: string; isExecuted: boolean; lastUpdated: number }>;
   lastUpdated: number;
 }>();
 
@@ -98,6 +158,11 @@ export default function VestingAdmin({
 }: VestingAdminProps) {
   // Initialize with cached data if available
   const cachedData = vestingDataCache.get(contractAddress);
+  
+  // Initialize Safe TxHash cache if not exists
+  if (cachedData && !cachedData.safeTxHashCache) {
+    cachedData.safeTxHashCache = new Map();
+  }
   
   const [vestingData, setVestingData] = useState<VestingItem[]>(cachedData?.vestingData || []);
   const [loading, setLoading] = useState(false);
@@ -119,7 +184,7 @@ export default function VestingAdmin({
       setCopiedMessage(address);
       setTimeout(() => setCopiedMessage(null), 2000);
     } catch (err) {
-      console.error('Failed to copy address: ', err);
+      logger.error('Failed to copy address', err);
     }
   };
 
@@ -130,16 +195,18 @@ export default function VestingAdmin({
       setCopiedCandidateMessage(address);
       setTimeout(() => setCopiedCandidateMessage(null), 2000);
     } catch (err) {
-      console.error('Failed to copy candidate address: ', err);
+      logger.error('Failed to copy candidate address', err);
     }
   };
 
   // Function to update cache
   const updateCache = (vestingData: VestingItem[], createVestingTxs: any[], releaseToTxs: any[]) => {
+    const existingCache = vestingDataCache.get(contractAddress);
     vestingDataCache.set(contractAddress, {
       vestingData,
       createVestingTransactions: createVestingTxs,
       releaseToTransactions: releaseToTxs,
+      safeTxHashCache: existingCache?.safeTxHashCache || new Map(),
       lastUpdated: Date.now()
     });
   };
@@ -153,28 +220,27 @@ export default function VestingAdmin({
 
   async function fetchCurrentUserAddress() {
     if (!(window as any).ethereum) {
-      console.error("MetaMask is not installed");
+      logger.error("MetaMask is not installed");
       return;
     }
     try {
       const provider = new ethers.BrowserProvider((window as any).ethereum);
       const signer = await provider.getSigner();
       const address = await signer.getAddress();
-      console.log("Current user address:", address);
+      logger.debug("Current user address", address);
       setCurrentUserAddress(address);
     } catch (error) {
-      console.error("Error fetching current user address:", error);
+      logger.error("Error fetching current user address", error);
     }
   }
 
   async function handleConfirmTransaction(tx: any) {
     if (!(window as any).ethereum) {
-      console.error("MetaMask is not installed");
-      // MetaMask not installed - user can install it themselves
+      logger.error("MetaMask is not installed");
       return;
     }
 
-    console.log("🎯 ===== handleConfirmTransaction START =====");  
+    logger.transactionStart('transaction confirmation', tx.safeTxHash);
 
     setOngoingTransaction(true);
     try {
@@ -182,8 +248,7 @@ export default function VestingAdmin({
       const signer = await provider.getSigner();
       const network = await provider.getNetwork();
       
-      // Network detection for RPC URL selection
-      console.log(`Network detected: ${network.name} (Chain ID: ${network.chainId})`);
+      logger.networkInfo(network.name, network.chainId.toString());
 
       // Get the RPC URL for the provider
       let rpcUrl = "";
@@ -196,7 +261,7 @@ export default function VestingAdmin({
           break;
         default:
           rpcUrl = process.env.REACT_APP_RPC_BSC_MAINNET || '';
-          console.warn('Unsupported network detected, defaulting to BSC Mainnet.');
+          logger.warn('Unsupported network detected, defaulting to BSC Mainnet.');
       }
 
       if (!rpcUrl) {
@@ -211,31 +276,29 @@ export default function VestingAdmin({
       }
 
       // Create Safe client with proper configuration
-      // Use window.ethereum directly for signing operations
       const safeClient = await createSafeClient({
-        provider: window.ethereum, // Use window.ethereum directly for signing
-        signer: await signer.getAddress(), // Use the wallet address as signer
+        provider: window.ethereum,
+        signer: await signer.getAddress(),
         safeAddress: safeAddressToUse,
         apiKey: process.env.REACT_APP_SAFE_API_KEY,
       });
 
-      console.log(`Confirming transaction with safeTxHash: ${tx.safeTxHash}`);
-      console.log("Transaction object:", tx);
-      console.log("Safe address from transaction:", tx.safeAddress);
-      console.log("Safe address from env:", process.env.REACT_APP_SAFE_WALLET);
-      console.log("Using safe address:", safeAddressToUse);
+      logger.debug('Confirming transaction', { 
+        safeTxHash: tx.safeTxHash, 
+        safeAddress: safeAddressToUse 
+      });
 
       const txResponse = await safeClient.confirm({
         safeTxHash: tx.safeTxHash,
       });
 
-      console.log("Transaction confirmed:", txResponse);
+      logger.transactionSuccess('transaction confirmation', tx.safeTxHash);
 
       // Check if auto-execution is enabled
-      console.log("🔍 Checking auto-execution setting:", process.env.REACT_APP_AUTO_EXECUTE_ENABLED);
+      logger.debug('Checking auto-execution setting', process.env.REACT_APP_AUTO_EXECUTE_ENABLED);
       
       if (process.env.REACT_APP_AUTO_EXECUTE_ENABLED === 'true') {
-        console.log("⚡ Auto-execution is enabled, checking threshold...");
+        logger.info('Auto-execution is enabled, checking threshold...');
         
         // Poll for confirmation threshold
         const maxAttempts = 10;
@@ -251,14 +314,14 @@ export default function VestingAdmin({
             
             if (updatedTx && updatedTx.confirmations && updatedTx.confirmations.length >= updatedTx.confirmationsRequired) {
               found = true;
-              console.log(`✅ Confirmation threshold reached! Confirmations: ${updatedTx.confirmations.length}/${updatedTx.confirmationsRequired}`);
+              logger.info(`Confirmation threshold reached! Confirmations: ${updatedTx.confirmations.length}/${updatedTx.confirmationsRequired}`);
             } else {
-              console.log(`🔄 Polling attempt ${attempt + 1}/${maxAttempts} (delay: ${delay}ms)`);
+              logger.debug(`Polling attempt ${attempt + 1}/${maxAttempts} (delay: ${delay}ms)`);
               await new Promise(resolve => setTimeout(resolve, delay));
               delay = Math.min(delay * 2, 4000); // exponential backoff, max 4s
             }
           } catch (pollError) {
-            console.error("Error polling for confirmation threshold:", pollError);
+            logger.error("Error polling for confirmation threshold", pollError);
             await new Promise(resolve => setTimeout(resolve, delay));
             delay = Math.min(delay * 2, 4000); // exponential backoff, max 4s
           }
@@ -266,11 +329,11 @@ export default function VestingAdmin({
         }
         
         if (found && updatedTx) {
-          console.log(`🚀 Auto-executing transaction ${tx.safeTxHash} after confirmation threshold reached`);
+          logger.info(`Auto-executing transaction ${tx.safeTxHash} after confirmation threshold reached`);
           await handleExecuteTransaction(updatedTx, true); // true indicates auto-execution
           alert("Transaction completed successfully");
         } else {
-          console.warn(`⚠️ Transaction ${tx.safeTxHash} confirmation threshold not reached within timeout period`);
+          logger.warn(`Transaction ${tx.safeTxHash} confirmation threshold not reached within timeout period`);
           alert("Transaction confirmed");
         }
       } else {
@@ -279,7 +342,7 @@ export default function VestingAdmin({
       
       fetchPendingTransactions(); // Refresh the list of pending transactions
     } catch (error: any) {
-      console.error("Error confirming transaction:", error);
+      logger.transactionError('transaction confirmation', error, tx.safeTxHash);
       alert(`Confirmation failed: ${error.message}`);
     } finally {
       setOngoingTransaction(false);
@@ -288,12 +351,11 @@ export default function VestingAdmin({
 
   async function handleExecuteTransaction(tx: any, isAutoExecution: boolean = false) {
     if (!(window as any).ethereum) {
-      console.error("MetaMask is not installed");
-      // MetaMask not installed - user can install it themselves
+      logger.error("MetaMask is not installed");
       return;
     }
 
-    console.log("🎯 ===== handleExecuteTransaction START =====");   
+    logger.transactionStart('transaction execution', tx.safeTxHash);
 
     setOngoingTransaction(true);
     try {
@@ -301,8 +363,7 @@ export default function VestingAdmin({
       const signer = await provider.getSigner();
       const network = await provider.getNetwork();
       
-      // Network detection for RPC URL selection
-      console.log(`Network detected: ${network.name} (Chain ID: ${network.chainId})`);
+      logger.networkInfo(network.name, network.chainId.toString());
 
       // Get the RPC URL for the provider
       let rpcUrl = "";
@@ -315,7 +376,7 @@ export default function VestingAdmin({
           break;
         default:
           rpcUrl = process.env.REACT_APP_RPC_BSC_MAINNET || '';
-          console.warn('Unsupported network detected, defaulting to BSC Mainnet.');
+          logger.warn('Unsupported network detected, defaulting to BSC Mainnet.');
       }
 
       if (!rpcUrl) {
@@ -336,21 +397,20 @@ export default function VestingAdmin({
         safeAddress: safeAddressToUse,
       });
 
-      console.log(`⚡ Executing transaction with safeTxHash: ${tx.safeTxHash}`);
+      logger.debug('Executing transaction', { safeTxHash: tx.safeTxHash });
 
       const txResponse = await safe.executeTransaction(tx.safeTxHash);
 
-      console.log("🎉 Transaction executed:", txResponse);
+      logger.transactionSuccess('transaction execution', tx.safeTxHash);
 
       // Refresh data after execution
-      console.log("🔄 Refreshing pending transactions...");
+      logger.info('Refreshing data after execution');
       fetchPendingTransactions();
-      console.log("🔄 Refreshing vesting data...");
       fetchVestingData();
 
       alert("Transaction executed");
     } catch (error: any) {
-      console.error("Error executing transaction:", error);
+      logger.transactionError('transaction execution', error, tx.safeTxHash);
       alert(`Execution failed: ${error.message}`);
     } finally {
       setOngoingTransaction(false);
@@ -359,34 +419,29 @@ export default function VestingAdmin({
 
   async function fetchVestingData() {
     if (!(window as any).ethereum) {
-      console.error("MetaMask is not installed");
-      // MetaMask not installed - user can install it themselves
+      logger.error("MetaMask is not installed");
       return;
     }
 
-    // If we have cached data and it's not stale, don't fetch again
-    // Always fetch fresh data when called (no cache staleness check)
-
-      console.log("🚀 ===== fetchVestingData START =====");
+    logger.dataFetch('vesting data', undefined);
 
     setLoading(true);
     try {
       const provider = new ethers.BrowserProvider((window as any).ethereum);
       const contract = new ethers.Contract(contractAddress, contractABI, provider);
 
-      console.log("Fetching vesting data for", title, "at contract:", contractAddress);
+      logger.debug('Fetching vesting data', { title, contractAddress });
 
       // Get all beneficiaries from VestingScheduleCreated events
       const events = await contract.queryFilter(contract.filters.VestingScheduleCreated());
-      console.log("Raw events:", events);
+      logger.debug('Raw events found', events.length);
       const beneficiaries = [...new Set(events.map((event: any) => event.args.beneficiary))];
 
-      console.log("Found beneficiaries:", beneficiaries);
-      console.log("Number of beneficiaries:", beneficiaries.length);
+      logger.dataFetch('beneficiaries', beneficiaries.length);
 
       // Get global start time
       const globalStartTime = await contract.globalStartTime();
-      console.log("Global start time:", globalStartTime.toString());
+      logger.debug('Global start time', globalStartTime.toString());
 
       const schedules = await Promise.all(beneficiaries.map(async (beneficiary: string, index: number) => {
         const schedule = await contract.vestingSchedules(beneficiary);
@@ -407,7 +462,7 @@ export default function VestingAdmin({
           currentTimestamp
         );
 
-        console.log(`Beneficiary ${beneficiary}:`, {
+        logger.debug(`Beneficiary ${beneficiary}`, {
           totalAmount: schedule.totalAmount.toString(),
           releasedAmount: schedule.releasedAmount.toString(),
           currentlyReleasable: currentlyReleasable.toString(),
@@ -438,19 +493,17 @@ export default function VestingAdmin({
         return b.totalVesting - a.totalVesting;
       });
 
-      console.log("Final sorted schedules:", sortedSchedules);
-      console.log("Setting vesting data with", sortedSchedules.length, "items");
+      logger.dataFetch('vesting schedules', sortedSchedules.length);
       
       setVestingData(sortedSchedules);
       
       // Update cache with new data
       updateCache(sortedSchedules, createVestingTransactions, releaseToTransactions);
       
-      console.log("✅ fetchVestingData completed successfully");
+      logger.transactionSuccess('vesting data fetch');
       
     } catch (error: any) {
-      console.error("Error fetching vesting data:", error);
-      // Error fetching vesting data - check console for details
+      logger.error("Error fetching vesting data", error);
     } finally {
       setLoading(false);
     }
@@ -459,18 +512,18 @@ export default function VestingAdmin({
   async function fetchPendingTransactions() {
     const safeAddress = process.env.REACT_APP_SAFE_WALLET;
     if (!safeAddress) {
-      // Safe wallet address not configured - check environment variables
+      logger.warn('Safe wallet address not configured');
       return;
     }
 
     if (!window.ethereum) {
-      // MetaMask not installed - user can install it themselves
+      logger.warn('MetaMask not installed');
       return;
     }
 
     // If we have cached pending transactions and it's not stale, don't fetch again
     if (!isCacheStale() && createVestingTransactions.length > 0) {
-      console.log(`📋 Using cached pending transactions for ${title} vesting (${contractAddress})`);
+      logger.debug(`Using cached pending transactions for ${title} vesting`);
       return;
     }
 
@@ -532,7 +585,7 @@ export default function VestingAdmin({
         const newTxs = pendingTxs.results || [];
         const hasChanged = JSON.stringify(prev) !== JSON.stringify(newTxs);
         if (hasChanged) {
-          console.log(`📊 Pending transactions updated for ${title} vesting: ${newTxs.length} total`);
+          logger.dataFetch('pending transactions', newTxs.length);
         }
         return newTxs;
       });
@@ -549,7 +602,7 @@ export default function VestingAdmin({
         
         const hasChanged = JSON.stringify(prev) !== JSON.stringify(newTxs);
         if (hasChanged) {
-          console.log(`📋 Create vesting transactions updated: ${newTxs.length} transactions`);
+          logger.dataFetch('create vesting transactions', newTxs.length);
         }
         return newTxs;
       });
@@ -558,7 +611,7 @@ export default function VestingAdmin({
       setReleaseToTransactions(prev => {
         const hasChanged = JSON.stringify(prev) !== JSON.stringify(releaseToTxs);
         if (hasChanged) {
-          console.log(`🔄 Release to transactions updated: ${releaseToTxs.length} transactions`);
+          logger.dataFetch('release to transactions', releaseToTxs.length);
         }
         return releaseToTxs;
       });
@@ -567,8 +620,7 @@ export default function VestingAdmin({
       updateCache(vestingData, createVestingTxs.length > 0 ? createVestingTxs : contractTxs, releaseToTxs);
 
     } catch (error: any) {
-      console.error("Error fetching pending transactions:", error);
-      // Don't clear existing data on error, just log the error
+      logger.error("Error fetching pending transactions", error);
     } finally {
       setRefreshingPending(false);
     }
@@ -579,7 +631,7 @@ export default function VestingAdmin({
     
     // Always use cached data if available, regardless of staleness
     if (cachedData && cachedData.vestingData.length > 0) {
-      console.log(`📋 Using cached data for ${title} vesting (${contractAddress})`);
+      logger.debug(`Using cached data for ${title} vesting`);
       setVestingData(cachedData.vestingData);
       setCreateVestingTransactions(cachedData.createVestingTransactions);
       setReleaseToTransactions(cachedData.releaseToTransactions);
@@ -602,7 +654,7 @@ export default function VestingAdmin({
   // Set up scheduler for automatic vesting data refresh (every 5 minutes)
   useEffect(() => {
     const scheduler = setInterval(() => {
-      console.log(`🔄 Scheduled refresh for ${title} vesting data`);
+      logger.info(`Scheduled refresh for ${title} vesting data`);
       fetchVestingData();
     }, 5 * 60 * 1000); // 5 minutes
 
@@ -613,22 +665,39 @@ export default function VestingAdmin({
     // Update release status for each vesting item based on pending transactions
     setVestingData(prevData => 
       prevData.map(item => {
-        const hasPendingRelease = releaseToTransactions.some(tx => 
+        const pendingTx = releaseToTransactions.find(tx => 
           getBeneficiaryAddress(tx)?.toLowerCase() === item.address.toLowerCase()
         );
         
+        if (pendingTx) {
+          const hasConfirmed = pendingTx.confirmations?.some((c: any) => 
+            c.owner.toLowerCase() === currentUserAddress?.toLowerCase()
+          );
+          const isInitiator = pendingTx.origin?.toLowerCase() === currentUserAddress?.toLowerCase();
+          
+          return {
+            ...item,
+            releaseStatus: `${pendingTx.confirmations?.length || 0}/${pendingTx.confirmationsRequired || 0}`,
+            pendingReleaseTx: pendingTx,
+            confirmations: pendingTx.confirmations,
+            confirmationsRequired: pendingTx.confirmationsRequired,
+            isExecuted: pendingTx.isExecuted,
+            origin: pendingTx.origin
+          };
+        }
+        
         return {
           ...item,
-          releaseStatus: hasPendingRelease ? "Pending Release" : 
-                        item.currentRelease > 0 ? "Available" : "Not Available",
-          pendingReleaseTx: hasPendingRelease ? 
-            releaseToTransactions.find(tx => 
-              getBeneficiaryAddress(tx)?.toLowerCase() === item.address.toLowerCase()
-            ) : undefined
+          releaseStatus: item.currentRelease > 0 ? "Available" : "Not Available",
+          pendingReleaseTx: undefined,
+          confirmations: undefined,
+          confirmationsRequired: undefined,
+          isExecuted: undefined,
+          origin: undefined
         };
       })
     );
-  }, [releaseToTransactions]);
+  }, [releaseToTransactions, currentUserAddress]);
 
   function getVestingAmount(tx: any) {
     try {
@@ -650,37 +719,67 @@ export default function VestingAdmin({
 
   function getBeneficiary(tx: any) {
     try {
+      logger.beneficiaryExtraction(tx.safeTxHash, 'getBeneficiary');
+      
       // First try to get from decoded parameters
       if (tx.dataDecoded?.parameters) {
+        logger.debug('Checking decoded parameters', tx.dataDecoded.parameters);
+        
+        // Look for beneficiary parameter
         const beneficiaryParam = tx.dataDecoded.parameters.find((p: any) => p.name === 'beneficiary');
         if (beneficiaryParam && beneficiaryParam.value) {
+          logger.beneficiaryFound('beneficiary parameter', beneficiaryParam.value);
           return beneficiaryParam.value;
         }
-      }
-      
-      // Try alternative parameter names
-      if (tx.dataDecoded?.parameters) {
+        
+        // Try alternative parameter names
         const addressParam = tx.dataDecoded.parameters.find((p: any) => 
-          p.name === 'address' || p.name === 'to' || p.name === 'recipient'
+          p.name === 'address' || p.name === 'to' || p.name === 'recipient' || p.name === 'user'
         );
         if (addressParam && addressParam.value) {
+          logger.beneficiaryFound('address parameter', addressParam.value);
           return addressParam.value;
+        }
+        
+        // Look for any parameter that looks like an address (starts with 0x and is 42 chars)
+        const addressLikeParam = tx.dataDecoded.parameters.find((p: any) => 
+          p.value && typeof p.value === 'string' && p.value.startsWith('0x') && p.value.length === ETHEREUM_ADDRESS_LENGTH
+        );
+        if (addressLikeParam && addressLikeParam.value) {
+          logger.beneficiaryFound('address-like parameter', addressLikeParam.value);
+          return addressLikeParam.value;
         }
       }
       
       // Try to extract from raw transaction data if available
       if (tx.to && tx.to !== '0x0000000000000000000000000000000000000000') {
+        logger.beneficiaryFound('tx.to', tx.to);
         return tx.to;
+      }
+      
+      // Try to extract from origin
+      if (tx.origin && tx.origin !== '0x0000000000000000000000000000000000000000') {
+        logger.beneficiaryFound('tx.origin', tx.origin);
+        return tx.origin;
       }
       
       // If we can't decode, try to extract from raw data
       if (tx.data && tx.data.length > 10) {
+        logger.beneficiaryFallback(tx.safeTxHash, 'Contract transaction');
         return "Contract transaction";
       }
       
+      // Fallback: use safeTxHash as unique identifier if no address found
+      if (tx.safeTxHash) {
+        const fallbackId = `Tx-${tx.safeTxHash.slice(0, 8)}`;
+        logger.beneficiaryFallback(tx.safeTxHash, fallbackId);
+        return fallbackId;
+      }
+      
+      logger.warn('No address found for transaction', tx.safeTxHash);
       return "Unknown address";
     } catch (error) {
-      console.error("Error parsing beneficiary address:", error);
+      logger.error("Error parsing beneficiary address", error);
       return "Error parsing address";
     }
   }
@@ -689,6 +788,7 @@ export default function VestingAdmin({
     try {
       // First try to get from decoded parameters
       if (tx.dataDecoded?.parameters) {
+        // Look for beneficiary parameter
         const beneficiaryParam = tx.dataDecoded.parameters.find((p: any) => p.name === 'beneficiary');
         if (beneficiaryParam && beneficiaryParam.value) {
           return beneficiaryParam.value;
@@ -696,10 +796,18 @@ export default function VestingAdmin({
         
         // Try alternative parameter names
         const addressParam = tx.dataDecoded.parameters.find((p: any) => 
-          p.name === 'address' || p.name === 'to' || p.name === 'recipient'
+          p.name === 'address' || p.name === 'to' || p.name === 'recipient' || p.name === 'user'
         );
         if (addressParam && addressParam.value) {
           return addressParam.value;
+        }
+        
+        // Look for any parameter that looks like an address (starts with 0x and is 42 chars)
+        const addressLikeParam = tx.dataDecoded.parameters.find((p: any) => 
+          p.value && typeof p.value === 'string' && p.value.startsWith('0x') && p.value.length === ETHEREUM_ADDRESS_LENGTH
+        );
+        if (addressLikeParam && addressLikeParam.value) {
+          return addressLikeParam.value;
         }
       }
       
@@ -708,21 +816,30 @@ export default function VestingAdmin({
         return tx.to;
       }
       
+      // Try to extract from origin
+      if (tx.origin && tx.origin !== '0x0000000000000000000000000000000000000000') {
+        return tx.origin;
+      }
+      
+      // Fallback: use safeTxHash as unique identifier if no address found
+      if (tx.safeTxHash) {
+        return `Tx-${tx.safeTxHash.slice(0, 8)}`;
+      }
+      
       return null;
     } catch (error) {
-      console.error("Error parsing beneficiary address:", error);
+      logger.error("Error parsing beneficiary address", error);
       return null;
     }
   }
 
   async function handleRelease(beneficiaryAddress: string) {
     if (!(window as any).ethereum) {
-      console.error("MetaMask is not installed");
-      // MetaMask not installed - user can install it themselves
+      logger.error("MetaMask is not installed");
       return;
     }
 
-    console.log("✅ ===== handleRelease START =====");
+    logger.transactionStart('release transaction creation', undefined);
 
     setOngoingTransaction(true);
     try {
@@ -730,8 +847,7 @@ export default function VestingAdmin({
       const signer = await provider.getSigner();
       const network = await provider.getNetwork();
       
-      // Network detection for RPC URL selection
-      console.log(`Network detected: ${network.name} (Chain ID: ${network.chainId})`);
+      logger.networkInfo(network.name, network.chainId.toString());
 
       // Get the RPC URL for the provider
       let rpcUrl = "";
@@ -744,7 +860,7 @@ export default function VestingAdmin({
           break;
         default:
           rpcUrl = process.env.REACT_APP_RPC_BSC_MAINNET || '';
-          console.warn('Unsupported network detected, defaulting to BSC Mainnet.');
+          logger.warn('Unsupported network detected, defaulting to BSC Mainnet.');
       }
 
       if (!rpcUrl) {
@@ -760,8 +876,8 @@ export default function VestingAdmin({
 
       // Create Safe client with proper configuration
       const safeClient = await createSafeClient({
-        provider: window.ethereum, // Use window.ethereum directly for signing
-        signer: await signer.getAddress(), // Use the wallet address as signer
+        provider: window.ethereum,
+        signer: await signer.getAddress(),
         safeAddress: safeAddressToUse,
         apiKey: process.env.REACT_APP_SAFE_API_KEY,
       });
@@ -773,20 +889,22 @@ export default function VestingAdmin({
         data: new ethers.Interface(contractABI).encodeFunctionData('releaseTo', [beneficiaryAddress]),
       };
 
-      console.log(`Creating release transaction for ${beneficiaryAddress}...`);
-      console.log("Contract address:", contractAddress);
-      console.log("Function data:", releaseToData);
+      logger.debug('Creating release transaction', { 
+        beneficiaryAddress, 
+        contractAddress, 
+        releaseToData 
+      });
 
       const txResponse = await safeClient.send({ transactions: [releaseToData] });
 
-      console.log("Release transaction created:", txResponse);
+      logger.transactionSuccess('release transaction creation');
 
       alert("Release transaction created");
       
       // Refresh pending transactions to show the new transaction
       fetchPendingTransactions();
     } catch (error: any) {
-      console.error("Error creating release transaction:", error);
+      logger.transactionError('release transaction creation', error);
       alert(`Release failed: ${error.message}`);
     } finally {
       setOngoingTransaction(false);
@@ -851,19 +969,18 @@ export default function VestingAdmin({
                 {createVestingTransactions.length > 0 ? (
                   createVestingTransactions.map((tx: any, index: number) => {
                     const beneficiaryAddress = getBeneficiaryAddress(tx);
+                    const beneficiary = getBeneficiary(tx);
                     const hasConfirmed = tx.confirmations.some((c: any) => c.owner.toLowerCase() === currentUserAddress?.toLowerCase());
                     const isInitiator = tx.origin?.toLowerCase() === currentUserAddress?.toLowerCase(); // Assuming tx.origin holds the initiator
                     const canConfirm = currentUserAddress && !hasConfirmed && !isInitiator && !tx.isExecuted; // Assuming tx.isExecuted exists
                     
-                    // Debug logging
-                    console.log(`Transaction ${index}:`, {
-                      currentUserAddress,
-                      hasConfirmed,
-                      isInitiator,
-                      isExecuted: tx.isExecuted,
-                      canConfirm,
-                      confirmations: tx.confirmations,
-                      origin: tx.origin
+                    // Debug logging for beneficiary addresses
+                    logger.debug(`Transaction ${index} debug`, {
+                      beneficiaryAddress,
+                      beneficiary,
+                      txData: tx.dataDecoded,
+                      txTo: tx.to,
+                      safeTxHash: tx.safeTxHash
                     });
 
                     return (
@@ -896,7 +1013,15 @@ export default function VestingAdmin({
                         </td>
                         <td className="py-4 px-6">{getVestingAmount(tx)}</td>
                         <td className="py-4 px-6">
-                          {truncateAddress(tx.safeTxHash)}
+                          <a
+                            href={getSafeTransactionUrl(tx.safeTxHash, tx.safeAddress, tx.isExecuted, contractAddress)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 underline cursor-pointer"
+                            title={`View transaction on Safe: ${tx.safeTxHash}`}
+                          >
+                            {formatSafeTxHash(tx.safeTxHash)}
+                          </a>
                         </td>
                         <td className="py-4 px-6">{tx.nonce}</td>
                         <td className="py-4 px-6">{tx.confirmations.length} / {tx.confirmationsRequired}</td>
@@ -920,8 +1045,8 @@ export default function VestingAdmin({
                               </div>
                             )}
                             
-                            {/* Execute button - only show if transaction has enough confirmations and is not executed */}
-                            {tx.confirmations.length >= tx.confirmationsRequired && !tx.isExecuted && (
+                            {/* Execute button - HIDDEN */}
+                            {/* {tx.confirmations.length >= tx.confirmationsRequired && !tx.isExecuted && (
                               <button 
                                 onClick={() => handleExecuteTransaction(tx, false)}
                                 className="bg-green-500 text-white px-3 py-1 rounded-lg disabled:bg-gray-400 text-sm"
@@ -929,7 +1054,7 @@ export default function VestingAdmin({
                               >
                                 Execute
                               </button>
-                            )}
+                            )} */}
                           </div>
                         </td>
                       </tr>
@@ -973,6 +1098,9 @@ export default function VestingAdmin({
                   <div>Release Status</div>
                 </th>
                 <th scope="col" className="py-3 px-6 text-left">
+                  <div>Safe TxHash</div>
+                </th>
+                <th scope="col" className="py-3 px-6 text-left">
                   <div>
                     <div>Action</div>
                   </div>
@@ -981,7 +1109,7 @@ export default function VestingAdmin({
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} className="text-center py-4">Loading...</td></tr>
+                <tr><td colSpan={8} className="text-center py-4">Loading...</td></tr>
               ) : vestingData.length > 0 ? (
                 vestingData.map((vesting: VestingItem, index: number) => (
                   <tr key={index} className="bg-white border-b hover:bg-gray-50">
@@ -1014,7 +1142,44 @@ export default function VestingAdmin({
                     <td className="py-4 px-6">{vesting.currentRelease}</td>
                     <td className="py-4 px-6">{vesting.releaseStatus}</td>
                     <td className="py-4 px-6">
-                      {vesting.currentRelease > 0 && vesting.releaseStatus === "Available" ? (
+                      {vesting.pendingReleaseTx ? (
+                        <a
+                          href={getSafeTransactionUrl(vesting.pendingReleaseTx.safeTxHash, vesting.pendingReleaseTx.safeAddress, vesting.pendingReleaseTx.isExecuted, contractAddress)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 underline cursor-pointer"
+                          title={`View transaction on Safe: ${vesting.pendingReleaseTx.safeTxHash}`}
+                        >
+                          {formatSafeTxHash(vesting.pendingReleaseTx.safeTxHash)}
+                        </a>
+                      ) : (
+                        <span className="text-gray-400 text-sm">-</span>
+                      )}
+                    </td>
+                    <td className="py-4 px-6">
+                      {vesting.pendingReleaseTx ? (
+                        // Show confirmation buttons for pending transactions
+                        <div className="flex gap-2">
+                          {vesting.confirmations && vesting.confirmationsRequired && 
+                           vesting.confirmations.some((c: any) => c.owner.toLowerCase() === currentUserAddress?.toLowerCase()) ? (
+                            <div className="text-sm text-gray-500">Confirmed</div>
+                          ) : vesting.origin?.toLowerCase() === currentUserAddress?.toLowerCase() ? (
+                            <div className="text-sm text-gray-500">You initiated this</div>
+                          ) : vesting.isExecuted ? (
+                            <div className="text-sm text-gray-500">Already executed</div>
+                          ) : currentUserAddress ? (
+                            <button 
+                              onClick={() => handleConfirmTransaction(vesting.pendingReleaseTx)}
+                              className="bg-blue-500 text-white px-3 py-1 rounded-lg disabled:bg-gray-400 text-sm"
+                              disabled={ongoingTransaction}
+                            >
+                              Confirm
+                            </button>
+                          ) : (
+                            <div className="text-sm text-gray-500">No wallet connected</div>
+                          )}
+                        </div>
+                      ) : vesting.currentRelease > 0 && vesting.releaseStatus === "Available" ? (
                         <button 
                           onClick={() => handleRelease(vesting.address)}
                           className="bg-green-500 text-white px-3 py-1 rounded-lg disabled:bg-gray-400 text-sm"
@@ -1024,14 +1189,14 @@ export default function VestingAdmin({
                         </button>
                       ) : (
                         <span className="text-gray-500 text-sm">
-                          {vesting.releaseStatus === "Pending Release" ? "Release Pending" : "No Release Available"}
+                          No Release Available
                         </span>
                       )}
                     </td>
                   </tr>
                 ))
               ) : (
-                <tr><td colSpan={7} className="text-center py-4">No vesting schedules found.</td></tr>
+                <tr><td colSpan={8} className="text-center py-4">No vesting schedules found.</td></tr>
               )}
             </tbody>
           </table>
