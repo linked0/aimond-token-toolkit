@@ -8,6 +8,7 @@ import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './swagger';
 import { generateMerkleTree } from './services/merkleTreeService';
 import { startClaimedEventListener } from './services/eventListenerService';
+import { startHttpEventPolling } from './services/httpEventPollingService';
 import * as fs from 'fs';
 
 // Global type declaration for SSE clients
@@ -103,5 +104,93 @@ if (intervalSeconds > 0) {
   console.log('[Scheduler] Periodic Merkle tree generation is disabled.');
 }
 
-// Start listening for Claimed events
-startClaimedEventListener();
+// Start listening for Claimed events with hybrid approach
+let eventListener: any = null;
+let httpPolling: any = null;
+let isWebSocketActive = false;
+let isHttpPollingActive = false;
+let lastHealthCheck = Date.now();
+
+// Hybrid approach: WebSocket primary, HTTP polling backup
+console.log('[Main] Starting hybrid event monitoring system...');
+console.log('[Main] Attempting to start WebSocket event listener as primary...');
+
+// Start WebSocket listener
+eventListener = startClaimedEventListener();
+
+// Set up health monitoring and automatic failover
+const healthCheckInterval = setInterval(() => {
+  const now = Date.now();
+  const timeSinceLastCheck = now - lastHealthCheck;
+  
+  // Check WebSocket health
+  const wsHealthy = (global as any).isWebSocketHealthy;
+  const httpHealthy = httpPolling ? httpPolling.isHealthy() : false;
+  
+  // If WebSocket is unhealthy and HTTP polling is not active, start HTTP polling
+  if (!wsHealthy && !isHttpPollingActive) {
+    console.log('[Main] WebSocket appears unhealthy, switching to HTTP polling...');
+    isWebSocketActive = false;
+    httpPolling = startHttpEventPolling();
+    isHttpPollingActive = true;
+    lastHealthCheck = now;
+  }
+  
+  // If WebSocket is healthy and HTTP polling is active, stop HTTP polling
+  if (wsHealthy && isHttpPollingActive) {
+    console.log('[Main] WebSocket is healthy again, stopping HTTP polling...');
+    if (httpPolling && httpPolling.stop) {
+      httpPolling.stop();
+    }
+    isHttpPollingActive = false;
+    isWebSocketActive = true;
+    lastHealthCheck = now;
+  }
+  
+  // If both are unhealthy, try to restart WebSocket
+  if (!wsHealthy && !httpHealthy) {
+    console.log('[Main] Both WebSocket and HTTP polling unhealthy, attempting restart...');
+    try {
+      eventListener = startClaimedEventListener();
+      isWebSocketActive = true;
+      lastHealthCheck = now;
+    } catch (error) {
+      console.log('[Main] WebSocket restart failed');
+    }
+  }
+}, 10000); // Check every 10 seconds
+
+// Periodic catch-up verification (every 5 minutes)
+const catchUpInterval = setInterval(() => {
+  if (isHttpPollingActive && httpPolling && httpPolling.runCatchUp) {
+    console.log('[Main] Running periodic catch-up verification...');
+    httpPolling.runCatchUp();
+  }
+}, 300000); // Every 5 minutes
+
+// Graceful shutdown
+process.on('SIGINT', () => {
+  console.log('[Main] Received SIGINT, shutting down gracefully...');
+  clearInterval(healthCheckInterval);
+  clearInterval(catchUpInterval);
+  if (eventListener && eventListener.disconnect) {
+    eventListener.disconnect();
+  }
+  if (httpPolling && httpPolling.stop) {
+    httpPolling.stop();
+  }
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  console.log('[Main] Received SIGTERM, shutting down gracefully...');
+  clearInterval(healthCheckInterval);
+  clearInterval(catchUpInterval);
+  if (eventListener && eventListener.disconnect) {
+    eventListener.disconnect();
+  }
+  if (httpPolling && httpPolling.stop) {
+    httpPolling.stop();
+  }
+  process.exit(0);
+});

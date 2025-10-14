@@ -22,17 +22,19 @@ To run the backend server, follow these steps:
     yarn install
     ```
 
-3.  **Run the Server:**
+3.  **Run Seed Script (Optional, for test data):**
+    To populate the database with test data, run the seed script:
+    ```bash
+    yarn db:setup
+    ```
+
+4.  **Run the Server:**
     ```bash
     yarn start
     ```
     The server will be accessible at `http://localhost:3000`.
 
-4.  **Run Seed Script (Optional, for test data):**
-    To populate the database with test data, run the seed script:
-    ```bash
-    yarn seed
-    ```
+
 
 ## Database Schema
 

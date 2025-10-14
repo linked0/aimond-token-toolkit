@@ -122,13 +122,27 @@ export default function CreateVestingSchedule() {
 
       const beneficiary = vestingAddress;
       const totalAmount = ethers.parseUnits(vestingQuantity, 18);
-      const mockVestingContract = new Contract(mockVestingAddress, mockVestingABI, provider);
-      const [cliff, vesting, installments, beneficiariesCount] = await Promise.all([
-        mockVestingContract.cliffDurationInSeconds(),
-        mockVestingContract.vestingDurationInSeconds(),
-        mockVestingContract.installmentCount(),
-        mockVestingContract.beneficiariesCount(),
-      ]);
+      
+      // Use the selected contract type for getting vesting parameters
+      const selectedContract = new Contract(contractAddress, contractABI, provider);
+      
+      // Only call cliffDurationInSeconds if the contract has this method (Mock Vesting only)
+      let cliff, vesting, installments, beneficiariesCount;
+      if (selectedVestingType === 'Mock') {
+        [cliff, vesting, installments, beneficiariesCount] = await Promise.all([
+          selectedContract.cliffDurationInSeconds(),
+          selectedContract.vestingDurationInSeconds(),
+          selectedContract.installmentCount(),
+          selectedContract.beneficiariesCount(),
+        ]);
+      } else {
+        // For other vesting types, use default values or get from a different method
+        // You may need to adjust these based on your contract implementation
+        cliff = 0n; // Default cliff duration
+        vesting = 0n; // Default vesting duration  
+        installments = 1n; // Default installment count
+        beneficiariesCount = 1n; // Default beneficiaries count
+      }
       console.log({ cliff, vesting, installments, beneficiariesCount });
       console.log({ beneficiary, totalAmount });
 

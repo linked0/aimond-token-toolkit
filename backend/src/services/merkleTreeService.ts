@@ -35,8 +35,16 @@ export async function generateMerkleTree() {
         const currentAmount = userAllocationsMap.get(user.user_id)?.cumulativeAmount || ethers.toBigInt(0);
         const newAmount = currentAmount + ethers.parseUnits(alloc.amount, 18);
 
+        const trimmedAddress = user.wallet_address.trim();
+        
+        // Validate the address format
+        if (!ethers.isAddress(trimmedAddress)) {
+          console.error(`[MerkleTreeService] Invalid wallet address format for user ${user.user_id}: "${user.wallet_address}" (trimmed: "${trimmedAddress}")`);
+          continue;
+        }
+        
         userAllocationsMap.set(user.user_id, {
-          walletAddress: user.wallet_address,
+          walletAddress: trimmedAddress,
           cumulativeAmount: newAmount,
         });
       }
@@ -129,8 +137,9 @@ export async function generateMerkleTree() {
     }
 
     for (const [userId, data] of userAllocationsMap.entries()) {
-      // FIX: Removed the outer keccak256() call here as well.
+      // FIX: Use the same method as when generating leaves for the tree
       const leaf = ethers.solidityPackedKeccak256(['address', 'uint256'], [data.walletAddress, data.cumulativeAmount]);
+      console.log(`[MerkleTreeService] DEBUG: User ${userId}, wallet: ${data.walletAddress}, amount: ${data.cumulativeAmount.toString()}, leaf: ${leaf}`);
       const proof = tree.getHexProof(leaf);
 
       await merkleProofRepository.create({

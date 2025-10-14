@@ -1,4 +1,4 @@
-import { ethers } from 'ethers';
+import { ethers, WebSocketProvider } from 'ethers';
 import { loyaltyPointAddress, loyaltyPointABI } from '../constants/contracts';
 import { chains } from '../constants/chains';
 import { PgUserRepository } from '../repositories/pg/PgUserRepository';
@@ -17,47 +17,69 @@ const allocationRepository = new PgAllocationRepository(pool);
 const claimRepository = new PgClaimRepository(pool);
 
 export function startClaimedEventListener() {
-  console.log('[EventListenerService] Starting event listener for Claimed events...');
+  console.log('[EventListenerService] Starting WebSocket event listener for Claimed events...');
 
-  let provider: ethers.JsonRpcProvider;
+  let provider: WebSocketProvider;
   let contract: ethers.Contract;
-  let isListening = false;
+  let isConnected = false;
+  let reconnectTimeout: NodeJS.Timeout | null = null;
+  let lastProcessedBlock = 0;
+  let lastHealthUpdate = Date.now();
 
-  // Global error handler for unhandled promise rejections
-  const originalUnhandledRejection = process.listeners('unhandledRejection');
-  process.on('unhandledRejection', (reason, promise) => {
-    const errorMessage = reason?.toString() || '';
-    if (errorMessage.includes('filter not found') || errorMessage.includes('eth_getFilterChanges')) {
-      console.error('[EventListenerService] Unhandled filter error detected:', reason);
-      recreateEventListener();
-    } else {
-      // Call original handlers if they exist
-      originalUnhandledRejection.forEach(listener => {
-        if (typeof listener === 'function') {
-          listener(reason, promise);
-        }
-      });
-    }
-  });
+  const WS_URL = process.env.WS_RPC_URL || 'wss://bsc-ws-node.nariox.org:443/ws';
+  
+  // Note: In ethers v6, we use contract.on() directly instead of raw topic filtering
 
-  const setupEventListener = () => {
+  const connect = async () => {
     try {
-      provider = new ethers.JsonRpcProvider(process.env.RPC_URL || chains.bsc.rpcUrls[0]);
+      console.log('[EventListenerService] Connecting to WebSocket provider...');
+      
+      // Create WebSocket provider
+      provider = new WebSocketProvider(WS_URL);
       contract = new ethers.Contract(loyaltyPointAddress, loyaltyPointABI, provider);
 
-      // Log provider connection
-      provider.getNetwork().then(net => {
-        console.log(
-          `[EventListenerService] Connected to network: ${net.name} (chainId: ${net.chainId})`
-        );
-      }).catch(error => {
-        console.error('[EventListenerService] Failed to get network info:', error);
+      // Handle connection events - in ethers v6, we need to check connection status differently
+      provider.on('error', (error) => {
+        console.error('[EventListenerService] WebSocket error:', error);
+        isConnected = false;
+        if (typeof global !== 'undefined') {
+          (global as any).isWebSocketHealthy = false;
+        }
+        scheduleReconnect();
       });
 
-      contract.on('Claimed', async (user, amount, event) => {
-        console.log(`🎉 [EventListenerService] ⭐ CLAIMED EVENT ⭐ received for user: ${user}, amount: ${amount.toString()} 🎉`);
+      // Note: 'close' event is not supported in ethers v6 WebSocket provider
+      // We'll monitor connection health through periodic checks instead
 
+      // Test connection by getting block number
+      try {
+        const blockNumber = await provider.getBlockNumber();
+        console.log('[EventListenerService] ✅ WebSocket connected successfully');
+        isConnected = true;
+        lastProcessedBlock = blockNumber;
+        lastHealthUpdate = Date.now();
+        console.log(`[EventListenerService] Starting from block: ${blockNumber}`);
+        
+        // Update global health status
+        if (typeof global !== 'undefined') {
+          (global as any).isWebSocketHealthy = true;
+        }
+      } catch (error) {
+        console.error('[EventListenerService] Failed to get block number:', error);
+        isConnected = false;
+        if (typeof global !== 'undefined') {
+          (global as any).isWebSocketHealthy = false;
+        }
+        scheduleReconnect();
+        return;
+      }
+
+      // Listen for Claimed events using the contract's event listener
+      contract.on('Claimed', async (user, amount, event) => {
         try {
+          console.log(`🎉 [EventListenerService] ⭐ CLAIMED EVENT ⭐ received:`, event);
+          console.log(`🎉 [EventListenerService] ⭐ CLAIMED EVENT ⭐ received for user: ${user}, amount: ${amount.toString()} 🎉`);
+
           const dbUser = await userRepository.findByWalletAddress(user);
           if (!dbUser) {
             console.warn(`[EventListenerService] User with address ${user} not found in the database.`);
@@ -69,8 +91,8 @@ export function startClaimedEventListener() {
           // 1. Create a new claim record
           const newClaim = await claimRepository.create({
             user_id: dbUser.user_id,
-            amount: ethers.formatUnits(amount, 18), // The amount of tokens claimed in this specific claim
-            total_claimed_amount: (currentTotalClaimedAmount + parseFloat(ethers.formatUnits(amount, 18))).toString(), // Calculate cumulative total
+            amount: ethers.formatUnits(amount, 18),
+            total_claimed_amount: (currentTotalClaimedAmount + parseFloat(ethers.formatUnits(amount, 18))).toString(),
             transaction_hash: event.log.transactionHash,
             status: 'SUCCESS',
           });
@@ -107,95 +129,86 @@ export function startClaimedEventListener() {
               }
             });
           }
-
         } catch (error) {
-          console.error(`❌ [EventListenerService] ❌ Error processing CLAIMED EVENT for user ${user}:`, error);
-          
-          // Check if this is a filter-related error that requires recreation
-          const errorMessage = (error as Error).message || '';
-          const isFilterError = errorMessage.includes('filter not found') || 
-                              errorMessage.includes('eth_getFilterChanges');
-          
-          if (isFilterError) {
-            console.log('[EventListenerService] Filter error detected in event processing, recreating listener...');
-            recreateEventListener();
-          }
+          console.error(`❌ [EventListenerService] ❌ Error processing CLAIMED EVENT:`, error);
         }
       });
-
-
-      // Handle provider errors and filter expiration
-      provider.on('error', (error) => {
-        console.error('[EventListenerService] Provider error:', error);
-        
-        // Check if it's a filter not found error (check both message and error object)
-        const isFilterNotFound = (error.message && error.message.includes('filter not found')) ||
-                               (error.error && error.error.message && error.error.message.includes('filter not found'));
-        
-        if (isFilterNotFound) {
-          console.log('[EventListenerService] Filter expired, attempting to recreate event listener...');
-          recreateEventListener();
-        }
-      });
-
-      // Handle contract event errors (including filter expiration)
-      contract.on('error', (error) => {
-        console.error('[EventListenerService] Contract event error:', error);
-        
-        // Check if it's a filter not found error
-        const isFilterNotFound = (error.message && error.message.includes('filter not found')) ||
-                               (error.error && error.error.message && error.error.message.includes('filter not found')) ||
-                               (error.code === 'UNKNOWN_ERROR' && error.error && error.error.message === 'filter not found');
-        
-        if (isFilterNotFound) {
-          console.log('[EventListenerService] Contract filter expired, attempting to recreate event listener...');
-          recreateEventListener();
-        }
-      });
-
-      isListening = true;
-      console.log('[EventListenerService] Event listener started.');
 
     } catch (error) {
-      console.error('[EventListenerService] Failed to setup event listener:', error);
-      // Retry after 5 seconds
-      setTimeout(() => {
-        console.log('[EventListenerService] Retrying to setup event listener...');
-        setupEventListener();
-      }, 5000);
+      console.error('[EventListenerService] Failed to connect to WebSocket:', error);
+      scheduleReconnect();
     }
   };
 
-  const recreateEventListener = () => {
-    if (isListening) {
-      console.log('[EventListenerService] Recreating event listener...');
-      
-      // Remove existing listeners
-      if (contract) {
-        contract.removeAllListeners();
-      }
-      if (provider) {
-        provider.removeAllListeners();
-      }
-      
-      isListening = false;
-      
-      // Wait a bit before recreating
-      setTimeout(() => {
-        console.log('[EventListenerService] Attempting to recreate event listener after filter error...');
-        setupEventListener();
-      }, 2000);
+  const scheduleReconnect = () => {
+    if (reconnectTimeout) {
+      clearTimeout(reconnectTimeout);
+    }
+    
+    console.log('[EventListenerService] Scheduling reconnection in 5 seconds...');
+    reconnectTimeout = setTimeout(() => {
+      console.log('[EventListenerService] Attempting to reconnect...');
+      connect().catch(console.error);
+    }, 5000);
+  };
+
+  const disconnect = () => {
+    if (provider) {
+      console.log('[EventListenerService] Disconnecting WebSocket...');
+      provider.destroy();
+    }
+    if (reconnectTimeout) {
+      clearTimeout(reconnectTimeout);
+    }
+    if (healthCheckInterval) {
+      clearInterval(healthCheckInterval);
+    }
+    isConnected = false;
+    if (typeof global !== 'undefined') {
+      (global as any).isWebSocketHealthy = false;
     }
   };
 
-  // Initial setup
-  setupEventListener();
+  // Handle graceful shutdown
+  process.on('SIGINT', () => {
+    console.log('[EventListenerService] Received SIGINT, shutting down gracefully...');
+    disconnect();
+    process.exit(0);
+  });
 
-  // Periodic health check to recreate listener if needed
-  setInterval(() => {
-    if (!isListening) {
-      console.log('[EventListenerService] Health check: Event listener not active, recreating...');
-      setupEventListener();
+  process.on('SIGTERM', () => {
+    console.log('[EventListenerService] Received SIGTERM, shutting down gracefully...');
+    disconnect();
+    process.exit(0);
+  });
+
+  // Start the connection
+  connect().catch(console.error);
+
+  // Health check every 30 seconds
+  const healthCheckInterval = setInterval(async () => {
+    if (!isConnected) {
+      console.log('[EventListenerService] Health check: Not connected, attempting to reconnect...');
+      connect().catch(console.error);
+    } else {
+      // Test connection by trying to get block number
+      try {
+        await provider.getBlockNumber();
+        lastHealthUpdate = Date.now();
+        if (typeof global !== 'undefined') {
+          (global as any).isWebSocketHealthy = true;
+        }
+      } catch (error) {
+        console.log('[EventListenerService] Health check failed, connection appears down');
+        isConnected = false;
+        if (typeof global !== 'undefined') {
+          (global as any).isWebSocketHealthy = false;
+        }
+        scheduleReconnect();
+      }
     }
-  }, 30000); // Check every 30 seconds
+  }, 30000);
+
+  // Return disconnect function for cleanup if needed
+  return { disconnect };
 }
