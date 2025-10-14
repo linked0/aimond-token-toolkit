@@ -2,9 +2,18 @@ import { Pool } from 'pg';
 import { IUserRepository } from '../interfaces';
 import { User } from '../../models/User';
 import pool from '../../database/db';
+import { ethers } from 'ethers';
 
 export class PgUserRepository implements IUserRepository {
   constructor(private db: Pool) {}
+
+  private normalizeWalletAddress(walletAddress: string): string {
+    const trimmed = walletAddress.trim();
+    if (!ethers.isAddress(trimmed)) {
+      throw new Error(`Invalid wallet address format: "${walletAddress}"`);
+    }
+    return trimmed;
+  }
 
   async findById(id: number): Promise<User | null> {
     const result = await this.db.query<User>('SELECT * FROM "user" WHERE user_id = $1', [id]);
@@ -12,7 +21,8 @@ export class PgUserRepository implements IUserRepository {
   }
 
   async findByWalletAddress(walletAddress: string): Promise<User | null> {
-    const result = await this.db.query<User>('SELECT * FROM "user" WHERE wallet_address = $1', [walletAddress]);
+    const normalizedAddress = this.normalizeWalletAddress(walletAddress);
+    const result = await this.db.query<User>('SELECT * FROM "user" WHERE wallet_address = $1', [normalizedAddress]);
     return result.rows[0] || null;
   }
 
@@ -25,10 +35,13 @@ export class PgUserRepository implements IUserRepository {
       is_paid_member,
       paid_member_tier = null,
     } = user;
+    
+    const normalizedWalletAddress = this.normalizeWalletAddress(wallet_address);
+    
     const result = await this.db.query<User>(
       'INSERT INTO "user"(wallet_address, referrer_id, total_spending_for_amd_allocation, total_spent_money, is_paid_member, paid_member_tier) VALUES($1, $2, $3, $4, $5, $6) RETURNING *',
       [
-        wallet_address,
+        normalizedWalletAddress,
         referrer_id,
         total_spending_for_amd_allocation,
         total_spent_money,

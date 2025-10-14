@@ -195,10 +195,16 @@ router.post('/spending-reward', async (req, res) => {
     return res.status(400).send('Wallet address and amount are required');
   }
 
+  // Trim and validate wallet address
+  const trimmedWalletAddress = wallet_address.trim();
+  if (!ethers.isAddress(trimmedWalletAddress)) {
+    return res.status(400).send('Invalid wallet address format');
+  }
+
   try {
-    let user = await userRepository.findByWalletAddress(wallet_address);
+    let user = await userRepository.findByWalletAddress(trimmedWalletAddress);
     if (!user) {
-      user = await userRepository.create({ wallet_address, total_spending_for_amd_allocation: '0', total_spent_money: '0', is_paid_member: false });
+      user = await userRepository.create({ wallet_address: trimmedWalletAddress, total_spending_for_amd_allocation: '0', total_spent_money: '0', is_paid_member: false });
     }
 
     const parsedAmount = parseFloat(amount);
@@ -374,20 +380,28 @@ router.post('/referral', async (req, res) => {
     return res.status(400).send('Referrer and referred wallet addresses are required');
   }
 
-  if (referrer_wallet_address === referred_wallet_address) {
+  // Trim and validate wallet addresses
+  const trimmedReferrerAddress = referrer_wallet_address.trim();
+  const trimmedReferredAddress = referred_wallet_address.trim();
+  
+  if (!ethers.isAddress(trimmedReferrerAddress) || !ethers.isAddress(trimmedReferredAddress)) {
+    return res.status(400).send('Invalid wallet address format');
+  }
+
+  if (trimmedReferrerAddress === trimmedReferredAddress) {
     console.error('Referrer wallet address and referred wallet address cannot be the same.');
     return res.status(400).send('Referrer wallet address and referred wallet address cannot be the same.');
   }
 
   try {
-    let referrerUser = await userRepository.findByWalletAddress(referrer_wallet_address);
+    let referrerUser = await userRepository.findByWalletAddress(trimmedReferrerAddress);
     if (!referrerUser) {
-      referrerUser = await userRepository.create({ wallet_address: referrer_wallet_address, total_spending_for_amd_allocation: '0', total_spent_money: '0', is_paid_member: false });
+      referrerUser = await userRepository.create({ wallet_address: trimmedReferrerAddress, total_spending_for_amd_allocation: '0', total_spent_money: '0', is_paid_member: false });
     }
 
-    let referredUser = await userRepository.findByWalletAddress(referred_wallet_address);
+    let referredUser = await userRepository.findByWalletAddress(trimmedReferredAddress);
     if (!referredUser) {
-      referredUser = await userRepository.create({ wallet_address: referred_wallet_address, referrer_id: referrerUser.user_id, total_spending_for_amd_allocation: '0', total_spent_money: '0', is_paid_member: false });
+      referredUser = await userRepository.create({ wallet_address: trimmedReferredAddress, referrer_id: referrerUser.user_id, total_spending_for_amd_allocation: '0', total_spent_money: '0', is_paid_member: false });
     } else {
       // If referred user already exists, update their referrer_id if not already set
       if (!referredUser.referrer_id) {
@@ -474,10 +488,16 @@ router.post('/airdrop', async (req, res) => {
     return res.status(400).send('Wallet address and amount are required');
   }
 
+  // Trim and validate wallet address
+  const trimmedWalletAddress = wallet_address.trim();
+  if (!ethers.isAddress(trimmedWalletAddress)) {
+    return res.status(400).send('Invalid wallet address format');
+  }
+
   try {
-    let user = await userRepository.findByWalletAddress(wallet_address);
+    let user = await userRepository.findByWalletAddress(trimmedWalletAddress);
     if (!user) {
-      user = await userRepository.create({ wallet_address, total_spending_for_amd_allocation: '0', total_spent_money: '0', is_paid_member: false });
+      user = await userRepository.create({ wallet_address: trimmedWalletAddress, total_spending_for_amd_allocation: '0', total_spent_money: '0', is_paid_member: false });
     }
 
     const allocation = await allocationRepository.create({
@@ -546,8 +566,14 @@ router.post('/claim', async (req, res) => {
     return res.status(400).send('Wallet address is required');
   }
 
+  // Trim and validate wallet address
+  const trimmedWalletAddress = wallet_address.trim();
+  if (!ethers.isAddress(trimmedWalletAddress)) {
+    return res.status(400).send('Invalid wallet address format');
+  }
+
   try {
-    const user = await userRepository.findByWalletAddress(wallet_address);
+    const user = await userRepository.findByWalletAddress(trimmedWalletAddress);
     if (!user) {
       return res.status(404).send('User not found');
     }
