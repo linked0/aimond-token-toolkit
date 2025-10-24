@@ -415,7 +415,7 @@ router.post('/referral', async (req, res) => {
 
     // Create a referral reward allocation for the referrer
     if (referrerUser) {
-      const referralRewardAmount = 1000; // Placeholder amount, adjust as needed
+      const referralRewardAmount = 14000; // Updated to match paid member reward amount
       await allocationRepository.create({
         user_id: referrerUser.user_id,
         amount: referralRewardAmount.toString(),

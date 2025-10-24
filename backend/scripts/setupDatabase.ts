@@ -86,7 +86,7 @@ const setupDatabase = async () => {
 
     console.log('Seeding initial data...');
 
-    const NUM_TEST_USERS = 20; // Generate 20 random test users
+    const NUM_TEST_USERS = 30; // Generate 30 random test users
     const testData: { walletAddress: string }[] = [];
     for (let i = 0; i < NUM_TEST_USERS; i++) {
       const wallet = ethers.Wallet.createRandom();

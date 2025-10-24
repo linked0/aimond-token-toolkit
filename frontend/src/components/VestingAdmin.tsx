@@ -592,19 +592,11 @@ export default function VestingAdmin({
 
       // Update create vesting transactions with smart comparison
       setCreateVestingTransactions(prev => {
-        let newTxs = createVestingTxs;
-        
-        // If we found transactions for this contract but couldn't categorize them, 
-        // show them all in the createVesting section as a fallback
-        if (contractTxs.length > 0 && createVestingTxs.length === 0 && releaseToTxs.length === 0) {
-          newTxs = contractTxs;
-        }
-        
-        const hasChanged = JSON.stringify(prev) !== JSON.stringify(newTxs);
+        const hasChanged = JSON.stringify(prev) !== JSON.stringify(createVestingTxs);
         if (hasChanged) {
-          logger.dataFetch('create vesting transactions', newTxs.length);
+          logger.dataFetch('create vesting transactions', createVestingTxs.length);
         }
-        return newTxs;
+        return createVestingTxs;
       });
 
       // Update release to transactions with smart comparison
@@ -617,7 +609,7 @@ export default function VestingAdmin({
       });
 
       // Update cache with new pending transaction data
-      updateCache(vestingData, createVestingTxs.length > 0 ? createVestingTxs : contractTxs, releaseToTxs);
+      updateCache(vestingData, createVestingTxs, releaseToTxs);
 
     } catch (error: any) {
       logger.error("Error fetching pending transactions", error);
